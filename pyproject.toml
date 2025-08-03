@@ -1,0 +1,31 @@
+[project]
+name = "demodados"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "black>=25.1.0",
+    "bs4>=0.0.2",
+    "isort>=6.0.1",
+    "pandas>=2.3.1",
+    "psycopg2-binary>=2.9.10",
+    "pydantic>=2.11.7",
+    "pytest>=8.4.1",
+    "python-dotenv>=1.1.1",
+    "rapidfuzz>=3.13.0",
+    "requests>=2.32.4",
+    "sqlalchemy>=2.0.42",
+    "taskipy>=1.14.1",
+    "unidecode>=1.4.0",
+]
+[tool.taskipy.tasks]
+format = """
+isort . 
+black .
+"""
+kill = "kill -9 $(lsof -t -i :8000)"
+test = "pytest -v"
+run = """ python3 app/main.py """
+doc = "mkdocs serve"
+
