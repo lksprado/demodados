@@ -1,10 +1,10 @@
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler
-import os
 
 
-def logger(name: str = "demodados", level=logging.INFO):
+def logger_setting(name: str = "demodados", level=logging.INFO):
     logger = logging.getLogger(name)
 
     if not logger.hasHandlers():
@@ -27,7 +27,7 @@ def logger(name: str = "demodados", level=logging.INFO):
         file_handler = RotatingFileHandler(
             filename=f"src/pipelines/logs/{name}.log",
             maxBytes=10 * 1024 * 1024,  # 10MB
-            backupCount=0
+            backupCount=0,
         )
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)

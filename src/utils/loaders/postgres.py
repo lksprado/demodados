@@ -1,10 +1,12 @@
 import os
+from datetime import datetime
+
 import psycopg2
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-import datetime
 
 load_dotenv()  # take environment variables
+
 
 class PostgreSQLManager:
     def __init__(
@@ -94,24 +96,24 @@ class PostgreSQLManager:
         )
         return self.engine
 
+    @staticmethod
+    def send_to_db(df, table_name, how="replace", filename=None):
+        try:
+            pg = PostgreSQLManager()
+            connection = pg.alchemy()
 
-def send_to_db(df, table_name, filename=None):
-    try:
-        pg = PostgreSQLManager()
-        connection = pg.alchemy()
+            if filename:
+                df["arquivo_origem"] = os.path.basename(filename)
 
-        if filename:
-            df["arquivo_origem"] = os.path.basename(filename)
-        
-        df["data_carga"] = datetime.now()
+            df["data_carga"] = datetime.now()
 
-        df.to_sql(
-            table_name, connection, schema="bronze", if_exists="append", index=False
-        )
-        print(f"✅ {filename} Dados inseridos em {table_name}")
+            df.to_sql(
+                table_name, connection, schema="bronze", if_exists=how, index=False
+            )
+            print(f"✅ {filename} Dados inseridos em {table_name}")
 
-    except Exception as e:
-        print(f"❌ Erro ao inserir no banco: {e}")
+        except Exception as e:
+            print(f"❌ Erro ao inserir no banco: {e}")
 
 
 def psyco_test():
