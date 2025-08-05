@@ -1,7 +1,10 @@
 import os
 import psycopg2
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
+import datetime
 
+load_dotenv()  # take environment variables
 
 class PostgreSQLManager:
     def __init__(
@@ -21,9 +24,9 @@ class PostgreSQLManager:
         self.db_user = db_user or os.getenv("DB_USER")
         self.db_password = db_password or os.getenv("DB_PASSWORD")
         self.db_host = db_host or os.getenv("DB_HOST")
-        self.db_port = db_port
+        self.db_port = db_port or os.getenv("DB_PORT")
 
-    def connect(self):
+    def _connect(self):
         try:
             connection = psycopg2.connect(
                 dbname=self.db_name,
@@ -40,7 +43,7 @@ class PostgreSQLManager:
 
     def execute_query(self, query):
         try:
-            connection = self.connect()
+            connection = self._connect()
             if connection:
                 cursor = connection.cursor()
                 cursor.execute(query)
@@ -58,7 +61,7 @@ class PostgreSQLManager:
 
     def execute_insert(self, query, values):
         try:
-            connection = self.connect()
+            connection = self._connect()
             if connection:
                 cursor = connection.cursor()
                 cursor.execute(query, values)
@@ -90,3 +93,42 @@ class PostgreSQLManager:
             f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
         )
         return self.engine
+
+
+def send_to_db(df, table_name, filename=None):
+    try:
+        pg = PostgreSQLManager()
+        connection = pg.alchemy()
+
+        if filename:
+            df["arquivo_origem"] = os.path.basename(filename)
+        
+        df["data_carga"] = datetime.now()
+
+        df.to_sql(
+            table_name, connection, schema="bronze", if_exists="append", index=False
+        )
+        print(f"✅ {filename} Dados inseridos em {table_name}")
+
+    except Exception as e:
+        print(f"❌ Erro ao inserir no banco: {e}")
+
+
+def psyco_test():
+    import psycopg2
+
+    conn = psycopg2.connect(
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+    )
+    print("✅ Conectado com sucesso")
+    conn.close()
+
+
+if __name__ == "__main__":
+    pg = PostgreSQLManager()
+    connect = pg._connect()
+    # psyco_test()
