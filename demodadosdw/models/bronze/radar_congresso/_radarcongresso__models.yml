@@ -1,0 +1,22 @@
+
+version: 2
+
+models:
+  - name: radarcongresso__governismo_deputados_raw
+    description: "Modelo bronze que calcula porcentual de governismo total e trimestral de deputados"
+    columns:
+      - name: id
+        description: "Identificador único do deputado"
+        tests:
+          - not_null
+  - name: radarcongresso__deputados_raw
+    description: "Modelo bronze que tem detalhes de cada deputado"
+    columns:
+      - name: id_parlamentar
+        description: "Identificador único do deputado com api original da camara"
+        tests:
+          - not_null
+      - name: id_parlamentar_voz
+        description: "Identificador único do deputado no radar congresso"
+        tests:
+          - not_null

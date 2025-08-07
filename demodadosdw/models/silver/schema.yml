@@ -1,0 +1,14 @@
+
+version: 2
+
+models:
+  - name: dim_deputados
+    description: "Modelo silver para dimensão de putados"
+    columns:
+      - name: id
+        description: "Identificador único do deputado"
+        tests:
+          - not_null
+          - unique
+      - name: nome_civil
+        description: "Nome do deputado"

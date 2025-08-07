@@ -1,0 +1,10 @@
+
+version: 2
+
+sources:
+  - name: camara
+    database: demodados
+    schema: raw
+    tables:
+    - name: camara__deputados_raw
+      description: "Dimensao para deputados"

@@ -1,0 +1,13 @@
+
+version: 2
+
+sources:
+  - name: radar
+    database: demodados
+    schema: raw
+    tables:
+    - name: radarcongresso__governismo_deputados_raw
+      description: "Fato para deputados governimo"
+
+    - name: radarcongresso__deputados_raw
+      description: "Dimensao para deputados"

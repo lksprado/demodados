@@ -1,0 +1,14 @@
+
+version: 2
+
+models:
+  - name: camara__deputados_raw
+    description: "Modelo bronze que carrega e padroniza os dados brutos da API da Câmara"
+    columns:
+      - name: id
+        description: "Identificador único do deputado"
+        tests:
+          - not_null
+          - unique
+      - name: nomecivil
+        description: "Nome do deputado"
