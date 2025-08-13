@@ -20,7 +20,7 @@ O projeto segue a arquitetura de camadas em Data Lakehouse:
 - **Landing**: Arquivos originais, preservado o formato de saída da Fonte
 - **Bronze**: Dados estruturas em tabelas raw no PostgresSQL
 - **Silver (dbt)**: dados limpos e padronizados
-- **Gold (dbt)**: dadosets analíticos prontos para consumo
+- **Gold (dbt)**: datasets analíticos prontos para consumo
 
 ## Ferramentas
 | Ferramenta    | Uso                                          |
@@ -30,6 +30,3 @@ O projeto segue a arquitetura de camadas em Data Lakehouse:
 | PostgreSQL    | Armazenamento e versionamento dos dados      |
 | dbt           | Modelagem e documentação dos dados           |
 | Pandera       | Validação de schema                          |
-
-
-

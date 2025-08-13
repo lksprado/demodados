@@ -1,7 +1,6 @@
 # schema_pandera.py
 from typing import Optional
 
-import pandas as pd
 import pandera.pandas as pa  # Recomendação atual do Pandera
 from pandera import DataFrameModel, Field
 from pandera.typing import Series
@@ -55,6 +54,32 @@ class GovernismoDeputadoSchema(DataFrameModel):
     total: Series[int]
     trimestre: Series[str]
     perc_governismo: Series[float] = pa.Field(nullable=True)
+
+    class Config:
+        strict = False
+        coerce = True
+
+
+class DeputadosRadarSchema(DataFrameModel):
+    casa: Series[str] = Field(nullable=True)
+    datanascimento: Series[str] = Field(nullable=True)
+    em_exercicio: Series[str] = Field(nullable=True)
+    email: Series[str] = Field(nullable=True)
+    endereco: Series[str] = Field(nullable=True)
+    genero: Series[str] = Field(nullable=True)
+    id_parlamentar: Series[str] = Field(nullable=True)
+    id_parlamentar_voz: Series[str] = Field(nullable=True)
+    naturalidade: Series[str] = Field(nullable=True)
+    nome_eleitoral: Series[str] = Field(nullable=True)
+    parlamentarpartido_idpartido: Series[str] = Field(nullable=True)
+    parlamentarpartido_sigla: Series[str] = Field(nullable=True)
+    parlamentarpartido_tipo: Series[str] = Field(nullable=True)
+    raca: Series[str] = Field(nullable=True)
+    telefone: Series[str] = Field(nullable=True)
+    transparenciaparlamentar: Series[str] = Field(nullable=True)
+    transparenciaparlamentar_estrelas: Series[str] = Field(nullable=True)
+    uf: Series[str] = Field(nullable=True)
+    ultima_legislatura: Series[str] = Field(nullable=True)
 
     class Config:
         strict = False

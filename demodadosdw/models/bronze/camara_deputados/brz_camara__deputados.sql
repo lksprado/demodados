@@ -32,7 +32,7 @@ renamed AS (
             ELSE cpf::TEXT
         END AS cpf,
         replace(replace(replace(redesocial, '[', ''), ']', ''), '''', '')
-            AS redesociais,
+        AS redesociais,
         to_date(datanascimento, 'YYYY-MM-DD') AS data_nascimento,
         to_date(datafalecimento, 'YYYY-MM-DD') AS data_falecimento
     FROM source

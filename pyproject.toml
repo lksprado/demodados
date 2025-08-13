@@ -7,10 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "black>=25.1.0",
     "bs4>=0.0.2",
-    "dbt-postgres>=1.9.0",
+    "dbt-core>=1.7,<2",
+    "dbt-postgres>=1.7,<2",
     "isort>=6.0.1",
+    "it>=1.0.0",
     "pandas>=2.3.1",
     "pandera[io]>=0.25.0",
+    "pre-commit>=4.3.0",
     "psycopg2-binary>=2.9.10",
     "pydantic>=2.11.7",
     "pytest>=8.4.1",
@@ -18,16 +21,17 @@ dependencies = [
     "rapidfuzz>=3.13.0",
     "requests>=2.32.4",
     "sqlalchemy>=2.0.42",
+    "sqlfluff==3.1.0",
+    "sqlfluff-templater-dbt==3.1.0",
     "taskipy>=1.14.1",
+    "to>=0.3",
     "unidecode>=1.4.0",
+    "use>=0.1.0",
 ]
-[tool.taskipy.tasks]
-format = """
-isort . 
-black .
-"""
-kill = "kill -9 $(lsof -t -i :8000)"
-test = "pytest -v"
-run = """ python3 app/main.py """
-doc = "mkdocs serve"
+[tool.isort]
+profile = "black"
+line_length = 88
 
+[tool.black]
+line-length = 88
+target-version = ["py312"]

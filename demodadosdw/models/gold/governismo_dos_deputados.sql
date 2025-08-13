@@ -1,18 +1,21 @@
-with 
-dim_dep as (
-    select * from {{ ref('dim_deputados')}}
+WITH
+dim_dep AS (
+    SELECT * FROM {{ ref('dim_deputados')}}
 ),
-fct_gov_total as (
-    select * from {{ ref('fct_governismo_deputados_total')}}
+
+fct_gov_total AS (
+    SELECT * FROM {{ ref('fct_governismo_deputados_total')}}
 ),
-tab as (
-    select 
-    t1.id,
-    t1.nome_eleitoral_atual,
-    t1.partido_atual,
-    t2.perc_governismo
-    from dim_dep t1
-    inner join fct_gov_total t2
-    on t1.id = t2.id 
+
+tab AS (
+    SELECT
+        t1.id,
+        t1.nome_eleitoral_atual,
+        t1.partido_atual,
+        t2.perc_governismo
+    FROM dim_dep AS t1
+    INNER JOIN fct_gov_total AS t2
+        ON t1.id = t2.id
 )
-select * from tab
+
+SELECT * FROM tab

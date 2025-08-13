@@ -98,6 +98,26 @@ class PostgreSQLManager:
 
     @staticmethod
     def send_to_db(df, table_name, how="replace", filename=None):
+        """
+        Envia um DataFrame para uma tabela no schema 'bronze' do PostgreSQL.
+
+        Args:
+            df (pd.DataFrame): DataFrame a ser inserido no banco de dados.
+            table_name (str): Nome da tabela de destino.
+            how (str, optional): Modo de inserção no banco. Pode ser 'replace', 'append' ou 'fail'. Default é 'replace'.
+            filename (str, optional): Nome do arquivo de origem para registrar no campo 'arquivo_origem'.
+
+        Comportamento:
+            - Adiciona as colunas 'data_carga' e, se fornecido, 'arquivo_origem'.
+            - Utiliza SQLAlchemy via PostgreSQLManager.
+            - Insere os dados na tabela especificada no schema 'bronze'.
+
+        Returns:
+            None. Os dados são persistidos no banco de dados.
+
+        Raises:
+            Exibe erro no console se falhar na operação de inserção.
+        """
         try:
             pg = PostgreSQLManager()
             connection = pg.alchemy()
@@ -107,9 +127,7 @@ class PostgreSQLManager:
 
             df["data_carga"] = datetime.now()
 
-            df.to_sql(
-                table_name, connection, schema="bronze", if_exists=how, index=False
-            )
+            df.to_sql(table_name, connection, schema="raw", if_exists=how, index=False)
             print(f"✅ {filename} Dados inseridos em {table_name}")
 
         except Exception as e:

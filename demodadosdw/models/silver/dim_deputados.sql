@@ -1,5 +1,6 @@
-with 
-source as (
-    select * from {{ ref('brz_camara__deputados')}}
+WITH
+source AS (
+    SELECT * FROM {{ ref('brz_camara__deputados')}}
 )
-select * from source
+
+SELECT * FROM source
