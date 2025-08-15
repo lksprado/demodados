@@ -10,7 +10,7 @@ load_dotenv()  # take environment variables
 
 class PostgreSQLManager:
     def __init__(
-        self, db_name=None, db_user=None, db_password=None, db_host=None, db_port="5432"
+        self, db_name=None, db_user=None, db_password=None, db_host=None, db_port=None
     ):
 
         if (
@@ -19,6 +19,7 @@ class PostgreSQLManager:
             and db_user is None
             and db_password is None
             and db_host is None
+            and db_port is None
         ):
             raise ValueError("As credenciais do Banco não foram fornecidas.")
 
@@ -97,14 +98,14 @@ class PostgreSQLManager:
         return self.engine
 
     @staticmethod
-    def send_to_db(df, table_name, how="replace", filename=None):
+    def send_to_db(df, table_name, how="append", filename=None):
         """
         Envia um DataFrame para uma tabela no schema 'bronze' do PostgreSQL.
 
         Args:
             df (pd.DataFrame): DataFrame a ser inserido no banco de dados.
             table_name (str): Nome da tabela de destino.
-            how (str, optional): Modo de inserção no banco. Pode ser 'replace', 'append' ou 'fail'. Default é 'replace'.
+            how (str, optional): Modo de inserção no banco. Pode ser 'replace', 'append' ou 'fail'. Default é 'append'.
             filename (str, optional): Nome do arquivo de origem para registrar no campo 'arquivo_origem'.
 
         Comportamento:
