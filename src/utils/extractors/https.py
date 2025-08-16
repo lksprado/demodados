@@ -12,8 +12,8 @@ class HttpJsonExtractor:
         self,
         url: str,
         output_dir: Path,
-        filename_fn: Callable[[str], str],
-        logger: logging.Logger | None = None,
+        filename_fn: str,
+        logger: Optional[logging.Logger] = None,
     ):
         self.url = url
         self.output_dir = Path(output_dir)
@@ -45,23 +45,29 @@ class HttpJsonExtractor:
                 timeout=timeout,
             )
             response.raise_for_status()
-            return response.json()
+            try:
+                return response.json()
+            except ValueError:
+                self.logger.error(f"RESPOSTA NAO E JSON: {self.url}")
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Erro ao processar: {self.url} --- {e}")
+            self.logger.error(f"ERRO REQUISICAO: {self.url} --- {e}")
 
     def _save(self, json_data: dict) -> Path:
         file_path = self.output_dir / self.filename_fn(self.url)
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(json_data, f, indent=4, ensure_ascii=False)
-        self.logger.info(f"Json salvo em: {file_path} ")
+        self.logger.info(f"JSON SALVO EM: {file_path} ")
         return file_path
 
     def fetch_and_save(self, **kwargs) -> Path:
         data = self._fetch(**kwargs)
         if data is None:
-            self.logger.error(f"Sem dados para salvar da url: {self.url}")
+            self.logger.error(f"SEM DADOS PARA SALVAR: {self.url}")
             raise
         return self._save(data)
+
+    #####################################################################
+    ## METODO AUXILIAR PARA MULTIPLAS REQUISICOES
 
 
 def make_http_request(
@@ -71,6 +77,7 @@ def make_http_request(
     params: dict = None,
     data: dict = None,
     json_data: dict = None,
+    log: Optional[logging.Logger] = None,
 ) -> dict | None:
     """
     Realiza uma requisição HTTP e retorna a resposta em formato JSON.
@@ -90,6 +97,8 @@ def make_http_request(
         - Timeout fixado em 10 segundos.
         - Aceita apenas respostas JSON (application/json).
     """
+    logger = log or logging.getLogger(__name__)
+
     default_headers = {"Accept": "application/json"}
     if headers:
         default_headers.update(headers)
@@ -104,13 +113,23 @@ def make_http_request(
             json=json_data,
             timeout=10,
         )
-        return response.json()
+        response.raise_for_status()
+        try:
+            return response.json()
+        except ValueError as e:
+            logger.error(f"RESPOSTA NAO E JSON")
+
     except requests.exceptions.RequestException as e:
-        print(f"❌ ERRO DE REQUISIÇÃO: {e}")
+        logger.error(f"ERRO DE REQUISIÇÃO: {e}")
         return None
 
 
-def response_to_json(response: dict, path: str, filename: str) -> None:
+def response_to_json(
+    response: dict,
+    output_dir: Path,
+    filename_fn: Callable[[str], str],
+    log: Optional[logging.Logger] = None,
+) -> None:
     """
     Salva uma resposta JSON em um arquivo local.
 
@@ -126,16 +145,18 @@ def response_to_json(response: dict, path: str, filename: str) -> None:
         - Cria o diretório se ele não existir.
         - Substitui o arquivo existente, se houver.
     """
-    if not os.path.exists(path):
-        os.makedirs(path)
+    logger = log or logging.getLogger(__name__)
+    output_dir = Path(output_dir)
 
-    file_path = os.path.join(path, filename)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = output_dir / filename_fn
 
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(response, f, indent=4, ensure_ascii=False)
 
-    print(f"✅ SUCESSO! JSON salvo em: {file_path}")
+    logger.info(f"JSON SALVO EM: {file_path}")
 
 
 if __name__ == "__main__":
-    pass
+    make_http_request("https://dadosabertos.camara.leg.br/api/v2/deputados/204379")

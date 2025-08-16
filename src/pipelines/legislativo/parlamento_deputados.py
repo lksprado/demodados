@@ -1,8 +1,9 @@
+import logging
 import os
 import re
 import shutil
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 import pandas as pd
 from pandera.errors import SchemaError
@@ -11,176 +12,151 @@ from src.pipelines.legislativo.schema import DeputadoSchema
 from src.utils.extractors.https import make_http_request, response_to_json
 from src.utils.loaders.postgres import PostgreSQLManager
 from src.utils.logger import logger_setting
-from src.utils.transformers.cleaning import TheEqualizer
+from src.utils.transformers.cleaning import ColumnSanitizer
 from src.utils.transformers.json_parsers import (
     make_df_from_json_list,
     normalize_json_object,
 )
 
-## urls
+PIPELINE_CONFIG_PRD = {
+    "parameter_file": "src/params/id_deputados.csv",
+    "url_base": "https://dadosabertos.camara.leg.br/api/v2/deputados/",
+    "landing_dir": "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/deputados_detalhes/",
+    "bronze_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/deputados_detalhes/",
+    "error_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/erros/",
+    "db_table": "parlamento_deputados_raw",
+}
+
+PIPELINE_CONFIG_TEST = {
+    "parameter_file": "src/params/id_deputados.csv",
+    "url_base": "https://dadosabertos.camara.leg.br/api/v2/deputados/",
+    "landing_dir": "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/teste/",
+    "bronze_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/teste/",
+    "error_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/erros/",
+    "db_table": "tst_parlamento_deputados_raw",
+}
+
+cols_to_not_sanitize_values = [
+    "uri",
+    "urlwebsite",
+    "redesocial",
+    "datanascimento",
+    "datafalecimento",
+    "ultimostatus_uri",
+    "ultimostatus_uripartido",
+    "ultimostatus_urlfoto",
+    "ultimostatus_email",
+    "ultimostatus_data",
+    "ultimostatus_gabinete_telefone",
+    "ultimostatus_gabinete_email",
+    "arquivo_origem",
+    "data_carga",
+]
+
+
 URL_DEPUTADOS_ATUAIS = (
     "https://dadosabertos.camara.leg.br/api/v2/deputados?ordem=ASC&ordenarPor=nome"
 )
-URL_DEPUTADO = "https://dadosabertos.camara.leg.br/api/v2/deputados/"
-
-## pastas
 PASTA_PARAMETROS = "src/params/"
-PASTA_LANDING_DEPUTADOS = "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/deputados_detalhes/"
-PASTA_BRONZE_DEPUTADOS = (
-    "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/deputados_detalhes/"
-)
-PASTA_ERROS = "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/erros/"
-
-## arquivos
 ARQUIVO_IDS_JSON = os.path.join(PASTA_PARAMETROS, "id_deputados.json")
 ARQUIVO_IDS_CSV = os.path.join(PASTA_PARAMETROS, "id_deputados.csv")
 
 
 def obter_ids_deputados_atuais():
+    """Funcao auxiliar para obter todos deputados atuais"""
     data = make_http_request(URL_DEPUTADOS_ATUAIS)
     response_to_json(data, PASTA_PARAMETROS, "id_deputados.json")
     df_ids = make_df_from_json_list(ARQUIVO_IDS_JSON)
     df_ids.to_csv(ARQUIVO_IDS_CSV, sep=";")
 
 
-def make_request_from_ids(
-    source_file: Path,
-    url_base: Callable[[str], str],
-    output_dir: Path,
-    filename: Callable[[str], str],
-    logger,
-):
-    """Le arquivo onde estao IDs para criar URL de requisicao"""
-    output_dir = Path(output_dir)
+def extract_deputado(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+
+    source_file = Path(config["parameter_file"])
+    output_dir = Path(config["landing_dir"])
+    url_base = str(config["url_base"])
 
     try:
         df_ids = pd.read_csv(source_file, sep=";")
         id_list = df_ids["id"].to_list()
     except Exception as e:
-        logger.error(f"❌ Erro ao ler arquivo de IDs: {source_file}")
-        return
+        logger.error(f"ERRO AO LER ARQUIVO DE IDS: {source_file}")
+        raise
 
     for id in id_list:
         try:
-            url = url_base(id)
-            data = make_http_request(url)
+            url = f"{url_base}{id}"
+            data = make_http_request(url, log=logger)
 
             if data:
                 output_dir.mkdir(parents=True, exist_ok=True)
-                output_file = filename(id)
+                output_file = f"{id}_deputado.json"
                 response_to_json(data, output_dir, output_file)
             else:
-                logger.warning(f"Sem resposta da API na url: {url}")
+                logger.warning(f"RESPOSTA VAZIA: {url}")
         except Exception as e:
-            logger.error(f"❌ Erro ao processar: {url} --- {e}")
+            logger.error(f"ERRO REQUISICAO {url} --- {e}")
 
 
-def transform_json_to_csv(
-    input_dir: Path, output_dir: Path, filename: Callable[[str], str], logger
+def transform_deputado(
+    config: dict, cols_to_sanitize: list, log: Optional[logging.Logger] = None
 ):
-    input_dir = Path(input_dir)
+    logger = log or logging.getLogger(__name__)
+    input_dir = Path(config["landing_dir"])
+    output_dir = Path(config["bronze_dir"])
+
     for f in input_dir.iterdir():
         try:
-            dep_id = re.match(r"^\d+", f).group()
+            dep_id = re.match(r"^\d+", f.name).group()
             data = normalize_json_object(f, "dados")
             if not data.empty:
-                os.makedirs(output_dir, exist_ok=True)
-                output_file = filename(dep_id)
-                file_destination = os.path.join(output_dir, output_file)
-                data.to_csv(
+                df = (
+                    ColumnSanitizer(data)
+                    .sanitize_columns_names()
+                    .not_sanitize_columns_values(cols=cols_to_sanitize)
+                    .df
+                )
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_file = f"{dep_id}_deputado.csv"
+
+                file_destination = output_dir / output_file
+                df.to_csv(
                     file_destination,
                     sep=";",
                     index=False,
                 )
+                logger.info(f"CSV SALVO EM: {file_destination}")
             else:
-                logger.warning(f"Objeto json retornou vazio:{f}")
+                logger.warning(f"JSON VAZIO:{f}")
         except Exception as e:
-            logger.error(f"❌ Erro ao processar: {f} --- {e}")
+            logger.error(f"ERRO AO TRANSFORMAR: {f} --- {e}")
 
 
-def validate_load_to_db(
-    input_dir: Path, db_table_name: str, cols_sanitize, logger, error_folder
-):
-    input_dir = Path(input_dir)
-    error_folder = Path(error_folder)
+def validate_load_to_db(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+
+    input_dir = Path(config["bronze_dir"])
+    error_dir = Path(config["error_dir"])
+    db_table_name = str(config["db_table"])
+
     ## VALIDACAO E CARGA
     for f in input_dir.iterdir():
         try:
             df = pd.read_csv(f, sep=";")
-            df = (
-                TheEqualizer(df)
-                .sanitize_columns_names()
-                .not_sanitize_columns_values(cols=cols_sanitize)
-                .df
-            )
             try:
                 validated_df = DeputadoSchema.validate(df)
                 PostgreSQLManager.send_to_db(
-                    df=validated_df, table_name=db_table_name, filename=f
+                    df=validated_df,
+                    table_name=db_table_name,
+                    how="append",
+                    filename=f.name,
+                    log=logger,
                 )
             except SchemaError as e:
-                os.makedirs(error_folder, exist_ok=True)
-                shutil.move(f, error_folder)
-                logger.error(f"❌ Erro ao validar: {f} --- {e}")
+                os.makedirs(error_dir, exist_ok=True)
+                shutil.copy(f, error_dir / f.name)
+                logger.error(f"ERRO VALIDACAO SCHEMA: {f.name} --- {e}")
+                logger.info(f"COPIANDO {f.name} PARA {error_dir}")
         except Exception as e:
-            logger.error(f"❌ Erro ao processar: {f} --- {e}")
-
-
-def pipeline_parlamento_deputados_raw(extraction=False, transforme=False, load=False):
-    """
-    1. Le arquivo com ID deputados
-    2. Faz requisicao http e salva json
-    3. Parseia json e salva em csv
-    4. Le csv faz limpeza basica
-    5. Valida dataframe conforme schema
-    6. Carga na camada broze como tabela raw
-    """
-    logger = logger_setting("pipeline_parlamento_deputados_raw")
-
-    if extraction == True:
-        url = lambda id: f"{URL_DEPUTADO}{id}"
-        file = lambda id: f"{id}_deputado.json"
-        make_request_from_ids(
-            ARQUIVO_IDS_CSV, url, PASTA_LANDING_DEPUTADOS, filename=file, logger=logger
-        )
-
-    if transforme == True:
-        file = lambda id: f"{id}_deputado.csv"
-        transform_json_to_csv(
-            PASTA_LANDING_DEPUTADOS,
-            PASTA_BRONZE_DEPUTADOS,
-            filename=file,
-            logger=logger,
-        )
-
-    if load == True:
-        cols_to_not_sanitize_values = [
-            "uri",
-            "urlwebsite",
-            "redesocial",
-            "datanascimento",
-            "datafalecimento",
-            "ultimostatus_uri",
-            "ultimostatus_uripartido",
-            "ultimostatus_urlfoto",
-            "ultimostatus_email",
-            "ultimostatus_data",
-            "ultimostatus_gabinete_telefone",
-            "ultimostatus_gabinete_email",
-            "arquivo_origem",
-            "data_carga",
-        ]
-        validate_load_to_db(
-            input_dir=PASTA_BRONZE_DEPUTADOS,
-            db_table_name="parlamento_deputados_raw",
-            cols_sanitize=cols_to_not_sanitize_values,
-            error_folder=PASTA_ERROS,
-            logger=logger,
-        )
-
-    logger.info("Concluido Pipeline de Deputados na Camara")
-    logger.info("-" * 75)
-
-
-if __name__ == "__main__":
-    pipeline_parlamento_deputados_raw(load=True)
+            logger.error(f"ERRO AO PROCESSAR: {f.name} --- {e}")

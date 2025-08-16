@@ -4,6 +4,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 from pandera.errors import SchemaError
@@ -17,85 +18,86 @@ from src.utils.loaders.postgres import PostgreSQLManager
 from src.utils.logger import logger_setting
 from src.utils.transformers.cleaning import ColumnSanitizer
 
-## URLS
-URL_GOVERNISMO = "https://radar.congressoemfoco.com.br/api/governismo?casa=camara"
-URL_DEPUTADOS = "https://radar.congressoemfoco.com.br/api/parlamentares"
+PIPELINE_DEPUTADOS_CONFIG_PRD = {
+    "url_base": "https://radar.congressoemfoco.com.br/api/parlamentares",
+    "landing_dir": "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/radar_congresso/",
+    "landing_file": "radar_deputados.json",
+    "bronze_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/radar_congresso/",
+    "bronze_file": "radar_deputados.csv",
+    "db_table": "radar_deputados_raw ",
+}
 
-## PASTAS
-PASTA_LANDING_RADAR_CONGRESSO = (
-    "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/radar_congresso/"
-)
-PASTA_BRONZE_RADAR_CONGRESSO = (
-    "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/radar_congresso/"
-)
-
-## ARQUIVOS
-ARQUIVO_JSON_DEPUTADOS = "radar_deputados.json"
-ARQUIVO_JSON_GOVERNISMO = "radar_governismo_deputados.json"
-ARQUIVO_CSV_DEPUTADOS = "radar_deputados.csv"
-ARQUIVO_CSV_GOVERNISMO = "radar_governismo_deputados.csv"
-
-## TABELAS DB
-TABELA_RADARCONGRESSO_DEPUTADOS_RAW = "radar_deputados_raw"
-TABELA_RADARCONGRESSO_GOVERNISMO_RAW = "radar_governismo_raw"
+PIPELINE_GOVERNISMO_CONFIG_PRD = {
+    "url_base": "https://radar.congressoemfoco.com.br/api/governismo?casa=camara",
+    "landing_dir": "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/radar_congresso/",
+    "landing_file": "radar_governismo.json",
+    "bronze_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/radar_congresso/",
+    "bronze_file": "radar_governismo.csv",
+    "db_table": "radar_governismo_raw ",
+}
 
 
-def extract_deputados():
-    logger = logger_setting("pipeline_radar_deputados_raw")
+def extract_deputados(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+
     extractor = HttpJsonExtractor(
-        url=URL_DEPUTADOS,
-        output_dir=PASTA_LANDING_RADAR_CONGRESSO,
-        filename_fn=lambda _: ARQUIVO_JSON_DEPUTADOS,
+        url=config["url_base"],
+        output_dir=config["landing_dir"],
+        filename_fn=config["landing_file"],
         logger=logger,
     )
     extractor.fetch_and_save()
 
 
-def transform_deputados():
-    logger = logger_setting("pipeline_radar_deputados_raw")
-    filepath = os.path.join(PASTA_LANDING_RADAR_CONGRESSO, ARQUIVO_JSON_DEPUTADOS)
+def transform_deputados(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+
+    filepath = os.path.join(config["landing_dir"], config["landing_file"])
     try:
         df = pd.read_json(filepath, dtype=str)
         df = ColumnSanitizer(df).sanitize_columns_names().df
-        file_dest = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_DEPUTADOS)
+        file_dest = os.path.join(config["bronze_dir"], config["bronze_file"])
         df.to_csv(file_dest, sep=";", index=False)
-        logger.info(f"CSV salvo em: {file_dest}")
+        logger.info(f"CSV SALVO EM: {file_dest}")
     except Exception as e:
-        logger.error(f"Erro ao transformar {filepath} --- {e}")
+        logger.error(f"ERRO AO TRANSFORMAR: {filepath} --- {e}")
 
 
-def load_deputados():
-    logger = logger_setting("pipeline_radar_deputados_raw")
-    csv = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_DEPUTADOS)
+def load_deputados(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+
+    csv = os.path.join(config["bronze_dir"], config["bronze_file"])
     validate_and_load_to_db(
         csv_file=csv,
-        table=TABELA_RADARCONGRESSO_DEPUTADOS_RAW,
+        table=config["db_table"],
         schema=DeputadosRadarSchema,
         file=csv,
         logger=logger,
     )
 
 
-def extract_governismo():
-    logger = logger_setting("pipeline_radar_governismo_raw")
+def extract_governismo(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+
     extractor = HttpJsonExtractor(
-        url=URL_GOVERNISMO,
-        output_dir=PASTA_LANDING_RADAR_CONGRESSO,
-        filename_fn=lambda _: ARQUIVO_JSON_GOVERNISMO,
+        url=config["url_base"],
+        output_dir=config["landing_dir"],
+        filename_fn=config["landing_file"],
         logger=logger,
     )
     extractor.fetch_and_save()
 
 
-def transform_governismo():
-    logger = logger_setting("pipeline_radar_governismo_raw")
-    filepath = os.path.join(PASTA_LANDING_RADAR_CONGRESSO, ARQUIVO_JSON_GOVERNISMO)
+def transform_governismo(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+
+    filepath = os.path.join(config["landing_dir"], config["landing_file"])
     with open(filepath, "r") as f:
         df = json.load(f)
     df = pd.DataFrame(df)
 
     if df.empty:
-        logger.warning("Dataframe vazio!")
+        logger.warning("DATAFRAME VAZIO!")
 
     try:
         parlamentares = df["parlamentares"]
@@ -125,20 +127,20 @@ def transform_governismo():
             var_name="trimestre",
             value_name="perc_governismo",
         )
-        file_dest = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_GOVERNISMO)
+        file_dest = os.path.join(config["bronze_dir"], config["bronze_file"])
         df_long.to_csv(file_dest, sep=";", index=False)
-        logger.info(f"CSV salvo em: {file_dest}")
+        logger.info(f"CSV SALVO EM: {file_dest}")
     except Exception as e:
-        logger.error(f"Erro ao transformar {filepath} --- {e} ")
+        logger.error(f"ERRO AO TRANSFORMAR {filepath} --- {e} ")
         raise
 
 
-def load_governismo():
-    logger = logger_setting("pipeline_radar_governismo_raw")
-    csv = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_GOVERNISMO)
+def load_governismo(config: dict, log: Optional[logging.Logger] = None):
+    logger = log or logging.getLogger(__name__)
+    csv = os.path.join(config["bronze_dir"], config["bronze_file"])
     validate_and_load_to_db(
         csv_file=csv,
-        table=TABELA_RADARCONGRESSO_GOVERNISMO_RAW,
+        table=config["db_table"],
         schema=GovernismoDeputadoSchema,
         file=csv,
         logger=logger,
@@ -150,13 +152,13 @@ def validate_and_load_to_db(csv_file, table, schema, file, logger: logging.Logge
     try:
         validated_df = schema.validate(df)
     except SchemaError as e:
-        logger.error(f"Erro de schema --- {e}")
+        logger.error(f"ERRO DE SCHEMA --- {e}")
     try:
         PostgreSQLManager.send_to_db(
             df=validated_df, table_name=table, filename=file, log=logger
         )
     except Exception as e:
-        logger.error(f"Erro na carga --- {e}")
+        logger.error(f"ERRO NA CARGA --- {e}")
 
 
 def pipeline_radar_deputados(extraction=False, transformation=False, load=False):
@@ -164,11 +166,11 @@ def pipeline_radar_deputados(extraction=False, transformation=False, load=False)
     logger.info("-" * 100)
     logger.info("Iniciando pipeline para carga de radar_deputados_raw")
     if extraction == True:
-        extract_deputados()
+        extract_deputados(config=PIPELINE_DEPUTADOS_CONFIG_PRD, log=logger)
     if transformation == True:
-        transform_deputados()
+        transform_deputados(config=PIPELINE_DEPUTADOS_CONFIG_PRD, log=logger)
     if load == True:
-        load_deputados()
+        load_deputados(config=PIPELINE_DEPUTADOS_CONFIG_PRD, log=logger)
     logger.info("Finalizado pipeline para carga de radar_deputados_raw")
     logger.info("-" * 100)
 
@@ -178,15 +180,14 @@ def pipeline_radar_governismo(extraction=False, transformation=False, load=False
     logger.info("-" * 100)
     logger.info("Iniciando pipeline para carga de radar_governismo_raw")
     if extraction == True:
-        extract_governismo()
+        extract_governismo(config=PIPELINE_GOVERNISMO_CONFIG_PRD, log=logger)
     if transformation == True:
-        transform_governismo()
+        transform_governismo(config=PIPELINE_GOVERNISMO_CONFIG_PRD, log=logger)
     if load == True:
-        load_governismo()
+        load_governismo(config=PIPELINE_GOVERNISMO_CONFIG_PRD, log=logger)
     logger.info("Finalizado pipeline para carga de radar_governismo_raw")
     logger.info("-" * 100)
 
 
 if __name__ == "__main__":
     pipeline_radar_governismo(True, True, True)
-    pass
