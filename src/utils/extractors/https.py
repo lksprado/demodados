@@ -1,7 +1,67 @@
 import json
+import logging
 import os
+from pathlib import Path
+from typing import Callable, Optional
 
 import requests
+
+
+class HttpJsonExtractor:
+    def __init__(
+        self,
+        url: str,
+        output_dir: Path,
+        filename_fn: Callable[[str], str],
+        logger: logging.Logger | None = None,
+    ):
+        self.url = url
+        self.output_dir = Path(output_dir)
+        self.filename_fn = filename_fn
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.logger = logger or logging.getLogger(self.__class__.__name__)
+
+    def _fetch(
+        self,
+        method="GET",
+        headers=None,
+        params=None,
+        data=None,
+        json_data=None,
+        timeout=10,
+    ) -> Optional[dict]:
+        default_headers = {"Accept": "application/json"}
+        if headers:
+            default_headers.update(headers)
+
+        try:
+            response = requests.request(
+                method=method,
+                url=self.url,
+                headers=default_headers,
+                params=params,
+                data=data,
+                json=json_data,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Erro ao processar: {self.url} --- {e}")
+
+    def _save(self, json_data: dict) -> Path:
+        file_path = self.output_dir / self.filename_fn(self.url)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(json_data, f, indent=4, ensure_ascii=False)
+        self.logger.info(f"Json salvo em: {file_path} ")
+        return file_path
+
+    def fetch_and_save(self, **kwargs) -> Path:
+        data = self._fetch(**kwargs)
+        if data is None:
+            self.logger.error(f"Sem dados para salvar da url: {self.url}")
+            raise
+        return self._save(data)
 
 
 def make_http_request(

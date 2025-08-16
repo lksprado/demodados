@@ -1,5 +1,7 @@
+import logging
 import os
 from datetime import datetime
+from typing import Optional
 
 import psycopg2
 from dotenv import load_dotenv
@@ -10,7 +12,13 @@ load_dotenv()  # take environment variables
 
 class PostgreSQLManager:
     def __init__(
-        self, db_name=None, db_user=None, db_password=None, db_host=None, db_port=None
+        self,
+        db_name=None,
+        db_user=None,
+        db_password=None,
+        db_host=None,
+        db_port=None,
+        log: Optional[logging.Logger] = None,
     ):
 
         if (
@@ -28,6 +36,7 @@ class PostgreSQLManager:
         self.db_password = db_password or os.getenv("DB_PASSWORD")
         self.db_host = db_host or os.getenv("DB_HOST")
         self.db_port = db_port or os.getenv("DB_PORT")
+        self.logger = log or logging.getLogger(self.__class__.__name__)
 
     def _connect(self):
         try:
@@ -38,10 +47,10 @@ class PostgreSQLManager:
                 host=self.db_host,
                 port=self.db_port,
             )
-            print("Conexão bem-sucedida ao banco de dados PostgreSQL.")
+            self.logger.info("Conexão bem-sucedida ao banco de dados PostgreSQL.")
             return connection
         except psycopg2.Error as e:
-            print(f"Erro ao conectar ao banco de dados PostgreSQL: {e}")
+            self.logger.error(f"Erro ao conectar ao banco de dados PostgreSQL: {e}")
             return None
 
     def execute_query(self, query):
@@ -56,10 +65,12 @@ class PostgreSQLManager:
                 connection.close()
                 return result
             else:
-                print("Não foi possível estabelecer a conexão com o banco de dados.")
+                self.logger.error(
+                    "Não foi possível estabelecer a conexão com o banco de dados."
+                )
                 return None
         except psycopg2.Error as e:
-            print(f"Erro ao executar a consulta SQL: {e}")
+            self.logger.error(f"Erro ao executar a consulta SQL: {e}")
             return None
 
     def execute_insert(self, query, values):
@@ -71,11 +82,13 @@ class PostgreSQLManager:
                 connection.commit()
                 cursor.close()
                 connection.close()
-                print("Inserção bem-sucedida.")
+                self.logger.info("Inserção bem-sucedida.")
             else:
-                print("Não foi possível estabelecer a conexão com o banco de dados.")
+                self.logger.error(
+                    "Não foi possível estabelecer a conexão com o banco de dados."
+                )
         except psycopg2.Error as e:
-            print(f"Erro ao executar a inserção SQL: {e}")
+            self.logger.error(f"Erro ao executar a inserção SQL: {e}")
 
     @staticmethod
     def check_environment_variables():
@@ -98,14 +111,20 @@ class PostgreSQLManager:
         return self.engine
 
     @staticmethod
-    def send_to_db(df, table_name, how="append", filename=None):
+    def send_to_db(
+        df,
+        table_name,
+        how="replace",
+        filename=None,
+        log: Optional[logging.Logger] = None,
+    ):
         """
         Envia um DataFrame para uma tabela no schema 'bronze' do PostgreSQL.
 
         Args:
             df (pd.DataFrame): DataFrame a ser inserido no banco de dados.
             table_name (str): Nome da tabela de destino.
-            how (str, optional): Modo de inserção no banco. Pode ser 'replace', 'append' ou 'fail'. Default é 'append'.
+            how (str, optional): Modo de inserção no banco. Pode ser 'replace', 'append' ou 'fail'. Default é 'replace'.
             filename (str, optional): Nome do arquivo de origem para registrar no campo 'arquivo_origem'.
 
         Comportamento:
@@ -119,20 +138,23 @@ class PostgreSQLManager:
         Raises:
             Exibe erro no console se falhar na operação de inserção.
         """
+        logger = log or logging.getLogger("PostgreSQLManager.send_to_db")
         try:
             pg = PostgreSQLManager()
             connection = pg.alchemy()
 
             if filename:
-                df["arquivo_origem"] = os.path.basename(filename)
+                df["arquivo_origem"] = filename
 
             df["data_carga"] = datetime.now()
 
             df.to_sql(table_name, connection, schema="raw", if_exists=how, index=False)
-            print(f"✅ {filename} Dados inseridos em {table_name}")
+            # print(f"✅ {filename} Dados inseridos em {table_name}")
+            logger.info(f"✅ Dados inseridos em raw.{table_name}")
 
         except Exception as e:
-            print(f"❌ Erro ao inserir no banco: {e}")
+            # print(f"❌ Erro ao inserir no banco: {e}")
+            logger.error(f"❌ Erro ao inserir no banco: {e}")
 
 
 def psyco_test():

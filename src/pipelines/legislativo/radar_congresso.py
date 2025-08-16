@@ -1,70 +1,103 @@
-import csv
 import json
+import logging
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from pandera.errors import SchemaError
 
-from src.pipelines.camara_deputados.schema import (
+from src.pipelines.legislativo.schema import (
     DeputadosRadarSchema,
     GovernismoDeputadoSchema,
 )
-from src.utils.extractors.https import make_http_request, response_to_json
+from src.utils.extractors.https import HttpJsonExtractor
 from src.utils.loaders.postgres import PostgreSQLManager
 from src.utils.logger import logger_setting
-from src.utils.transformers.cleaning import TheEqualizer
-from src.utils.transformers.json_parsers import (
-    make_df_from_json_list,
-    normalize_json_object,
-)
+from src.utils.transformers.cleaning import ColumnSanitizer
 
+## URLS
 URL_GOVERNISMO = "https://radar.congressoemfoco.com.br/api/governismo?casa=camara"
-# URL BASE EXEMPLO PARA DETALHES DOS DEPUTADOS
-# https://radar.congressoemfoco.com.br/api/parlamentares/1204526/info
-URL_DEPUTADOS_BASE = "https://radar.congressoemfoco.com.br/api/parlamentares"
+URL_DEPUTADOS = "https://radar.congressoemfoco.com.br/api/parlamentares"
 
-PASTA_LANDING_RADAR_CONGRESSO = "data/landing/camara/radar_congresso/"
-PASTA_LANDING_RADAR_CONGRESSO_DEPUTADOS = (
-    "data/landing/camara/radar_congresso/radar_detalhes_deputados/"
+## PASTAS
+PASTA_LANDING_RADAR_CONGRESSO = (
+    "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/radar_congresso/"
 )
-PASTA_BRONZE_RADAR_CONGRESSO = "data/bronze/camara/radar_congresso/"
-
-ARQUIVO_GOVERNISMO_JSON = os.path.join(
-    PASTA_LANDING_RADAR_CONGRESSO, "deputados_governismo.json"
-)
-ARQUIVO_ID_DEPUTADOS_CSV = "src/params/radar_congresso_ids.csv"
-ARQUIVO_SCHEMAS_TXT = "data/bronze/camara/radar_congresso/schema_cols/todas_colunas_id_voz_deputado_detalhes.txt"
-
-TAB_RADARCONGRESSO__GOVERNISMO_DEPUTADOS_RAW = (
-    "radarcongresso__governismo_deputados_raw"
+PASTA_BRONZE_RADAR_CONGRESSO = (
+    "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/radar_congresso/"
 )
 
+## ARQUIVOS
+ARQUIVO_JSON_DEPUTADOS = "radar_deputados.json"
+ARQUIVO_JSON_GOVERNISMO = "radar_governismo_deputados.json"
+ARQUIVO_CSV_DEPUTADOS = "radar_deputados.csv"
+ARQUIVO_CSV_GOVERNISMO = "radar_governismo_deputados.csv"
 
-def pipeline_radarcongresso_governismo_deputados():
-    logger = logger_setting("pipeline_radarcongresso__governismo_deputados_raw")
-    logger.info("Iniciando Pipeline de Governismo dos Deputados na Camara")
+## TABELAS DB
+TABELA_RADARCONGRESSO_DEPUTADOS_RAW = "radar_deputados_raw"
+TABELA_RADARCONGRESSO_GOVERNISMO_RAW = "radar_governismo_raw"
 
+
+def extract_deputados():
+    logger = logger_setting("pipeline_radar_deputados_raw")
+    extractor = HttpJsonExtractor(
+        url=URL_DEPUTADOS,
+        output_dir=PASTA_LANDING_RADAR_CONGRESSO,
+        filename_fn=lambda _: ARQUIVO_JSON_DEPUTADOS,
+        logger=logger,
+    )
+    extractor.fetch_and_save()
+
+
+def transform_deputados():
+    logger = logger_setting("pipeline_radar_deputados_raw")
+    filepath = os.path.join(PASTA_LANDING_RADAR_CONGRESSO, ARQUIVO_JSON_DEPUTADOS)
     try:
-        data = make_http_request(URL_GOVERNISMO)
-        if data:
-            response_to_json(
-                data, PASTA_LANDING_RADAR_CONGRESSO, "deputados_governismo.json"
-            )
-            logger.info(f"✅ Dados salvos em: {PASTA_LANDING_RADAR_CONGRESSO}")
-        else:
-            logger.warning(f"⚠️ Nenhuma resposta da API")
-            return
+        df = pd.read_json(filepath, dtype=str)
+        df = ColumnSanitizer(df).sanitize_columns_names().df
+        file_dest = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_DEPUTADOS)
+        df.to_csv(file_dest, sep=";", index=False)
+        logger.info(f"CSV salvo em: {file_dest}")
     except Exception as e:
-        logger.error(
-            f"❌ Falha ao processar arquivo em: {PASTA_LANDING_RADAR_CONGRESSO}"
-        )
-        logger.exception(e)
+        logger.error(f"Erro ao transformar {filepath} --- {e}")
+
+
+def load_deputados():
+    logger = logger_setting("pipeline_radar_deputados_raw")
+    csv = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_DEPUTADOS)
+    validate_and_load_to_db(
+        csv_file=csv,
+        table=TABELA_RADARCONGRESSO_DEPUTADOS_RAW,
+        schema=DeputadosRadarSchema,
+        file=csv,
+        logger=logger,
+    )
+
+
+def extract_governismo():
+    logger = logger_setting("pipeline_radar_governismo_raw")
+    extractor = HttpJsonExtractor(
+        url=URL_GOVERNISMO,
+        output_dir=PASTA_LANDING_RADAR_CONGRESSO,
+        filename_fn=lambda _: ARQUIVO_JSON_GOVERNISMO,
+        logger=logger,
+    )
+    extractor.fetch_and_save()
+
+
+def transform_governismo():
+    logger = logger_setting("pipeline_radar_governismo_raw")
+    filepath = os.path.join(PASTA_LANDING_RADAR_CONGRESSO, ARQUIVO_JSON_GOVERNISMO)
+    with open(filepath, "r") as f:
+        df = json.load(f)
+    df = pd.DataFrame(df)
+
+    if df.empty:
+        logger.warning("Dataframe vazio!")
+
     try:
-        with open(f"{ARQUIVO_GOVERNISMO_JSON}", "r") as f:
-            df = json.load(f)
-        df = pd.DataFrame(df)
         parlamentares = df["parlamentares"]
         df_parlamentares = pd.json_normalize(parlamentares)
         df_parlamentares = df_parlamentares.dropna(subset=["id"]).reset_index()
@@ -84,107 +117,76 @@ def pipeline_radarcongresso_governismo_deputados():
                 date = date_match.group(0)  # Captura a data
             new_col_name = f"{date}"
             cols_dict[c] = new_col_name
-
         df_parlamentares = df_parlamentares.rename(columns=cols_dict)
-
         cols_renamed = list(cols_dict.values())
-
         df_long = df_parlamentares.melt(
             id_vars=["id", "afavor", "n", "total"],
             value_vars=cols_renamed,
             var_name="trimestre",
             value_name="perc_governismo",
         )
-        logger.info(f"✅ Dados transformados com sucesso")
-        try:
-            GovernismoDeputadoSchema.validate(df_long)
-            logger.info("✅ Dados validados com Pandera com sucesso")
-            pg = PostgreSQLManager()
-            pg.send_to_db(
-                df=df_long,
-                table_name=TAB_RADARCONGRESSO__GOVERNISMO_DEPUTADOS_RAW,
-                filename="deputados_gorvernismo.json",
-            )
-            logger.info("✅ Dados carregados com sucesso")
-            logger.info("✅ Concluido Pipeline de Deputados na Camara")
-            logger.info("-" * 75)
-        except SchemaError as e:
-            logger.error(
-                "❌ Erro de schema Pandera na validação do DataFrame antes da carga"
-            )
-            logger.exception(e)
-            return
+        file_dest = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_GOVERNISMO)
+        df_long.to_csv(file_dest, sep=";", index=False)
+        logger.info(f"CSV salvo em: {file_dest}")
     except Exception as e:
-        logger.error(
-            f"❌ Falha ao processar arquivo em: {PASTA_LANDING_RADAR_CONGRESSO}"
+        logger.error(f"Erro ao transformar {filepath} --- {e} ")
+        raise
+
+
+def load_governismo():
+    logger = logger_setting("pipeline_radar_governismo_raw")
+    csv = os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, ARQUIVO_CSV_GOVERNISMO)
+    validate_and_load_to_db(
+        csv_file=csv,
+        table=TABELA_RADARCONGRESSO_GOVERNISMO_RAW,
+        schema=GovernismoDeputadoSchema,
+        file=csv,
+        logger=logger,
+    )
+
+
+def validate_and_load_to_db(csv_file, table, schema, file, logger: logging.Logger):
+    df = pd.read_csv(csv_file, sep=";")
+    try:
+        validated_df = schema.validate(df)
+    except SchemaError as e:
+        logger.error(f"Erro de schema --- {e}")
+    try:
+        PostgreSQLManager.send_to_db(
+            df=validated_df, table_name=table, filename=file, log=logger
         )
-        logger.exception(e)
+    except Exception as e:
+        logger.error(f"Erro na carga --- {e}")
 
 
-##########################################################################################################################
-##########################################################################################################################
-##########################################################################################################################
+def pipeline_radar_deputados(extraction=False, transformation=False, load=False):
+    logger = logger_setting("pipeline_radar_deputados_raw")
+    logger.info("-" * 100)
+    logger.info("Iniciando pipeline para carga de radar_deputados_raw")
+    if extraction == True:
+        extract_deputados()
+    if transformation == True:
+        transform_deputados()
+    if load == True:
+        load_deputados()
+    logger.info("Finalizado pipeline para carga de radar_deputados_raw")
+    logger.info("-" * 100)
 
 
-def get_radarcongresso_id_deputados():
-    with open(ARQUIVO_GOVERNISMO_JSON, "r") as f:
-        data_json = json.load(f)
-
-    ids = list(set(data_json["parlamentares"].keys()))
-
-    with open(ARQUIVO_ID_DEPUTADOS_CSV, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["id_radarcongresso"])
-        for id in ids:
-            writer.writerow([id])
-    print(f"Arquivo de ID de deputados salvo em {ARQUIVO_ID_DEPUTADOS_CSV}")
-
-
-def pipeline_radarcongresso_deputados_detalhes():
-    logger = logger_setting("pipeline_radarcongresso__deputados_raw")
-    logger.info("Iniciando Pipeline de Governismo dos Deputados na Camara")
-
-    url = URL_DEPUTADOS_BASE
-    df_id = pd.read_csv("src/params/radar_congresso_ids.csv")
-    id_ls = df_id.iloc[:, 0].to_list()
-    for id in id_ls:
-        data_json = make_http_request(f"{url}/{id}/info")
-        if data_json:
-            response_to_json(
-                data_json,
-                PASTA_LANDING_RADAR_CONGRESSO_DEPUTADOS,
-                f"{id}_voz_deputado_detalhes.json",
-            )
-            df = pd.json_normalize(data_json)
-            df = TheEqualizer(df).sanitize_columns_names().df
-            df.to_csv(
-                f"{PASTA_BRONZE_RADAR_CONGRESSO}{id}_voz_deputado_detalhes.csv",
-                sep=";",
-                index=False,
-            )
-
-    pg = PostgreSQLManager()
-    for file in os.listdir(PASTA_BRONZE_RADAR_CONGRESSO):
-        df = pd.read_csv(
-            os.path.join(PASTA_BRONZE_RADAR_CONGRESSO, file),
-            sep=";",
-            encoding="utf-8",
-            dtype=str,
-        )
-
-    with open(f"{ARQUIVO_SCHEMAS_TXT}", "r", encoding="utf-8") as f:
-        linhas = f.read().splitlines()
-        for col in linhas:
-            if col not in df.columns:
-                df[col] = None
-
-    DeputadosRadarSchema.validate(df)
-
-    pg.send_to_db(df, "radarcongresso__deputados_raw", how="append", filename=file)
+def pipeline_radar_governismo(extraction=False, transformation=False, load=False):
+    logger = logger_setting("pipeline_radar_governismo_raw")
+    logger.info("-" * 100)
+    logger.info("Iniciando pipeline para carga de radar_governismo_raw")
+    if extraction == True:
+        extract_governismo()
+    if transformation == True:
+        transform_governismo()
+    if load == True:
+        load_governismo()
+    logger.info("Finalizado pipeline para carga de radar_governismo_raw")
+    logger.info("-" * 100)
 
 
 if __name__ == "__main__":
-    # pipeline_radarcongresso_governismo_deputados()
-    # pipeline_radarcongresso_deputados_detalhes()
-    # get_radarcongresso_id_deputados()
+    pipeline_radar_governismo(True, True, True)
     pass
