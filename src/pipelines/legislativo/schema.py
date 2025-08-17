@@ -7,6 +7,8 @@ from pandera.typing import Series
 
 
 class DeputadoSchema(DataFrameModel):
+    """VALIDACAO DE API DA CAMARA DETALHES DOS DEPUTADOS"""
+
     id: Series[int] = Field(nullable=False)
     uri: Series[str] = Field(nullable=False)
     nomecivil: Series[str] = Field(nullable=False)
@@ -47,7 +49,9 @@ class DeputadoSchema(DataFrameModel):
         coerce = True  # Tenta converter os valores. Se algum valor não puder ser convertido, ele vira NaN ao invés de gerar erro.
 
 
-class GovernismoDeputadoSchema(DataFrameModel):
+class GovernismoSchema(DataFrameModel):
+    """VALIDACAO DE RADAR CONGRESSO GOVERNISMO"""
+
     id: Series[int]
     afavor: Series[int]
     n: Series[int]
@@ -60,24 +64,17 @@ class GovernismoDeputadoSchema(DataFrameModel):
         coerce = True
 
 
-class DeputadosRadarSchema(DataFrameModel):
-    id_parlamentar_voz: Series[str] = Field(nullable=True)
-    id_parlamentar: Series[str] = Field(nullable=True)
+class ParlamentarRadarSchema(DataFrameModel):
+    """VALIDACAO DE RADAR CONGRESSO PARLAMENTARES"""
+
+    idparlamentarvoz: Series[str] = Field(nullable=True)
+    idparlamentar: Series[str] = Field(nullable=True)
     casa: Series[str] = Field(nullable=True)
-    cpf: Series[str] = Field(nullable=True)
-    nome_civil: Series[str] = Field(nullable=True)
-    nome_eleitoral: Series[str] = Field(nullable=True)
-    genero: Series[str] = Field(nullable=True)
+    nomeeleitoral: Series[str] = Field(nullable=True)
+    nomeprocessado: Series[str] = Field(nullable=True)
     uf: Series[str] = Field(nullable=True)
-    id_partido: Series[str] = Field(nullable=True)
-    situacao: Series[str] = Field(nullable=True)
-    condicao_eleitoral: Series[str] = Field(nullable=True)
     ultima_legislatura: Series[str] = Field(nullable=True)
-    em_exercicio: Series[str] = Field(nullable=True)
-    data_nascimento: Series[str] = Field(nullable=True)
-    naturalidade: Series[str] = Field(nullable=True)
-    endereco: Series[str] = Field(nullable=True)
-    telefone: Series[str] = Field(nullable=True)
+    emexercicio: Series[str] = Field(nullable=True)
     parlamentarpartido: Series[str] = Field(nullable=True)
 
     class Config:

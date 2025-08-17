@@ -150,11 +150,11 @@ class PostgreSQLManager:
 
             df.to_sql(table_name, connection, schema="raw", if_exists=how, index=False)
             # print(f"✅ {filename} Dados inseridos em {table_name}")
-            logger.info(f"✅ Dados inseridos em raw.{table_name}")
+            logger.info(f"✅ DADOS INSERIDOS EM RAW.{table_name}")
 
         except Exception as e:
             # print(f"❌ Erro ao inserir no banco: {e}")
-            logger.error(f"❌ Erro ao inserir no banco: {e}")
+            logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}")
 
 
 def psyco_test():

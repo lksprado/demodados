@@ -1,43 +1,70 @@
+"""
+Pipeline Radar Congresso (parlamentares e governismo).
+Extrai dados de https://radar.congressoemfoco.com.br/
+
+Fluxo:
+1) extract_*: baixa JSON da API do Radar Congresso e salva em data/landing.
+2) transform_*: normaliza e salva CSV em data/bronze.
+3) load_*: valida com Pandera e insere na tabela Postgres correspondente.
+
+Entradas externas:
+- APIs públicas (urls em *_CONFIG_PRD)
+Saídas:
+- Arquivos: data/landing/.../*.json, data/bronze/.../*.csv
+- Tabelas: <schema>.<db_table> (ver configs)
+
+Como rodar (exemplos):
+- python radar_congresso.py --pipeline governismo_deputados --extract --transform --load
+- python radar_congresso.py --pipeline parlamentares --transform
+Requisitos:
+- Conexão Postgres configurada em PostgreSQLManager
+- Schemas Pandera: ParlamentarRadarSchema, GovernismoSchema
+"""
+
 import json
 import logging
 import os
 import re
-from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 from pandera.errors import SchemaError
 
-from src.pipelines.legislativo.schema import (
-    DeputadosRadarSchema,
-    GovernismoDeputadoSchema,
-)
+from src.pipelines.legislativo.schema import GovernismoSchema, ParlamentarRadarSchema
 from src.utils.extractors.https import HttpJsonExtractor
 from src.utils.loaders.postgres import PostgreSQLManager
 from src.utils.logger import logger_setting
 from src.utils.transformers.cleaning import ColumnSanitizer
 
-PIPELINE_DEPUTADOS_CONFIG_PRD = {
-    "url_base": "https://radar.congressoemfoco.com.br/api/parlamentares",
-    "landing_dir": "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/radar_congresso/",
-    "landing_file": "radar_deputados.json",
-    "bronze_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/radar_congresso/",
-    "bronze_file": "radar_deputados.csv",
-    "db_table": "radar_deputados_raw ",
+PIPELINE_PARLAMENTARES_CONFIG_PRD = {
+    "url_base": "https://radar.congressoemfoco.com.br/api/busca-parlamentar",
+    "landing_dir": "./data/landing/radar_congresso/parlamentares/",
+    "landing_file": "radar_parlamentares.json",
+    "bronze_dir": "./data/bronze/radar_congresso/parlamentares/",
+    "bronze_file": "radar_parlamentares.csv",
+    "db_table": "radar_parlamentares_raw",
 }
 
-PIPELINE_GOVERNISMO_CONFIG_PRD = {
+PIPELINE_GOVERNISMO_DEPUTADOS_CONFIG_PRD = {
     "url_base": "https://radar.congressoemfoco.com.br/api/governismo?casa=camara",
-    "landing_dir": "/media/lucas/Files/2.Projetos/0.mylake/landing/demodados/camara/radar_congresso/",
-    "landing_file": "radar_governismo.json",
-    "bronze_dir": "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara/radar_congresso/",
-    "bronze_file": "radar_governismo.csv",
-    "db_table": "radar_governismo_raw ",
+    "landing_dir": "./data/landing/radar_congresso/governismo/",
+    "landing_file": "radar_governismo_deputados.json",
+    "bronze_dir": "./data/bronze/radar_congresso/governismo/",
+    "bronze_file": "radar_governismo_deputados.csv",
+    "db_table": "radar_governismo_deputados_raw",
+}
+
+PIPELINE_GOVERNISMO_SENADORES_CONFIG_PRD = {
+    "url_base": "https://radar.congressoemfoco.com.br/api/governismo?casa=senado",
+    "landing_dir": "./data/landing/radar_congresso/governismo/",
+    "landing_file": "radar_governismo_senadores.json",
+    "bronze_dir": "./data/bronze/radar_congresso/governismo/",
+    "bronze_file": "radar_governismo_senadores.csv",
+    "db_table": "radar_governismo_senadores_raw",
 }
 
 
-def extract_deputados(config: dict, log: Optional[logging.Logger] = None):
+def extract_parlamentares(config: dict, log: Optional[logging.Logger] = None):
     logger = log or logging.getLogger(__name__)
 
     extractor = HttpJsonExtractor(
@@ -49,10 +76,13 @@ def extract_deputados(config: dict, log: Optional[logging.Logger] = None):
     extractor.fetch_and_save()
 
 
-def transform_deputados(config: dict, log: Optional[logging.Logger] = None):
+def transform_parlamentares(config: dict, log: Optional[logging.Logger] = None):
     logger = log or logging.getLogger(__name__)
 
     filepath = os.path.join(config["landing_dir"], config["landing_file"])
+    if not os.path.exists(config["bronze_dir"]):
+        os.makedirs(config["bronze_dir"])
+
     try:
         df = pd.read_json(filepath, dtype=str)
         df = ColumnSanitizer(df).sanitize_columns_names().df
@@ -63,14 +93,14 @@ def transform_deputados(config: dict, log: Optional[logging.Logger] = None):
         logger.error(f"ERRO AO TRANSFORMAR: {filepath} --- {e}")
 
 
-def load_deputados(config: dict, log: Optional[logging.Logger] = None):
+def load_parlamentares(config: dict, log: Optional[logging.Logger] = None):
     logger = log or logging.getLogger(__name__)
 
     csv = os.path.join(config["bronze_dir"], config["bronze_file"])
     validate_and_load_to_db(
         csv_file=csv,
         table=config["db_table"],
-        schema=DeputadosRadarSchema,
+        schema=ParlamentarRadarSchema,
         file=csv,
         logger=logger,
     )
@@ -89,9 +119,28 @@ def extract_governismo(config: dict, log: Optional[logging.Logger] = None):
 
 
 def transform_governismo(config: dict, log: Optional[logging.Logger] = None):
+    """
+    Transforma JSON de governismo em formato tabular "long" e salva CSV.
+
+    Args:
+        config: dicionário com chaves obrigatórias:
+            - "landing_dir", "landing_file", "bronze_dir", "bronze_file"
+        log: logger opcional.
+
+    Produz:
+        CSV em {bronze_dir}/{bronze_file} com colunas:
+        [id, afavor, n, total, trimestre, perc_governismo]
+
+    Raises:
+        Exception: Repassa exceções não tratadas de IO / parsing em caso crítico.
+    """
     logger = log or logging.getLogger(__name__)
 
     filepath = os.path.join(config["landing_dir"], config["landing_file"])
+
+    if not os.path.exists(config["bronze_dir"]):
+        os.makedirs(config["bronze_dir"])
+
     with open(filepath, "r") as f:
         df = json.load(f)
     df = pd.DataFrame(df)
@@ -141,7 +190,7 @@ def load_governismo(config: dict, log: Optional[logging.Logger] = None):
     validate_and_load_to_db(
         csv_file=csv,
         table=config["db_table"],
-        schema=GovernismoDeputadoSchema,
+        schema=GovernismoSchema,
         file=csv,
         logger=logger,
     )
@@ -161,33 +210,92 @@ def validate_and_load_to_db(csv_file, table, schema, file, logger: logging.Logge
         logger.error(f"ERRO NA CARGA --- {e}")
 
 
-def pipeline_radar_deputados(extraction=False, transformation=False, load=False):
+def pipeline_radar_parlamentares(extraction=False, transformation=False, load=False):
     logger = logger_setting("pipeline_radar_deputados_raw")
     logger.info("-" * 100)
-    logger.info("Iniciando pipeline para carga de radar_deputados_raw")
+    logger.info("Iniciando pipeline")
     if extraction == True:
-        extract_deputados(config=PIPELINE_DEPUTADOS_CONFIG_PRD, log=logger)
+        try:
+            extract_parlamentares(config=PIPELINE_PARLAMENTARES_CONFIG_PRD, log=logger)
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
     if transformation == True:
-        transform_deputados(config=PIPELINE_DEPUTADOS_CONFIG_PRD, log=logger)
+        try:
+            transform_parlamentares(
+                config=PIPELINE_PARLAMENTARES_CONFIG_PRD, log=logger
+            )
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
     if load == True:
-        load_deputados(config=PIPELINE_DEPUTADOS_CONFIG_PRD, log=logger)
-    logger.info("Finalizado pipeline para carga de radar_deputados_raw")
+        try:
+            load_parlamentares(config=PIPELINE_PARLAMENTARES_CONFIG_PRD, log=logger)
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
+    logger.info("Finalizado pipeline")
     logger.info("-" * 100)
 
 
-def pipeline_radar_governismo(extraction=False, transformation=False, load=False):
+def pipeline_radar_governismo_deputados(
+    extraction=False, transformation=False, load=False
+):
     logger = logger_setting("pipeline_radar_governismo_raw")
     logger.info("-" * 100)
-    logger.info("Iniciando pipeline para carga de radar_governismo_raw")
+    logger.info("Iniciando pipeline")
     if extraction == True:
-        extract_governismo(config=PIPELINE_GOVERNISMO_CONFIG_PRD, log=logger)
+        try:
+            extract_governismo(
+                config=PIPELINE_GOVERNISMO_DEPUTADOS_CONFIG_PRD, log=logger
+            )
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
     if transformation == True:
-        transform_governismo(config=PIPELINE_GOVERNISMO_CONFIG_PRD, log=logger)
+        try:
+            transform_governismo(
+                config=PIPELINE_GOVERNISMO_DEPUTADOS_CONFIG_PRD, log=logger
+            )
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
     if load == True:
-        load_governismo(config=PIPELINE_GOVERNISMO_CONFIG_PRD, log=logger)
-    logger.info("Finalizado pipeline para carga de radar_governismo_raw")
+        try:
+            load_governismo(config=PIPELINE_GOVERNISMO_DEPUTADOS_CONFIG_PRD, log=logger)
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
+    logger.info("Finalizado pipeline")
+    logger.info("-" * 100)
+
+
+def pipeline_radar_governismo_senadores(
+    extraction=False, transformation=False, load=False
+):
+    logger = logger_setting("pipeline_radar_governismo_raw")
+    logger.info("-" * 100)
+    logger.info("Iniciando pipeline")
+    if extraction == True:
+        try:
+            extract_governismo(
+                config=PIPELINE_GOVERNISMO_SENADORES_CONFIG_PRD, log=logger
+            )
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
+    if transformation == True:
+        try:
+            transform_governismo(
+                config=PIPELINE_GOVERNISMO_SENADORES_CONFIG_PRD, log=logger
+            )
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
+    if load == True:
+        try:
+            load_governismo(config=PIPELINE_GOVERNISMO_SENADORES_CONFIG_PRD, log=logger)
+        except Exception as e:
+            logger.error(f"ALGO DEU ERRADO --- {e}")
+    logger.info("Finalizado pipeline")
     logger.info("-" * 100)
 
 
 if __name__ == "__main__":
-    pipeline_radar_governismo(True, True, True)
+    pipeline_radar_governismo_deputados(True, True, True)
+    pipeline_radar_governismo_senadores(True, True, True)
+    pipeline_radar_parlamentares(True, True, True)
+
+    pass

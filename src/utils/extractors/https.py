@@ -53,7 +53,7 @@ class HttpJsonExtractor:
             self.logger.error(f"ERRO REQUISICAO: {self.url} --- {e}")
 
     def _save(self, json_data: dict) -> Path:
-        file_path = self.output_dir / self.filename_fn(self.url)
+        file_path = self.output_dir / self.filename_fn
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(json_data, f, indent=4, ensure_ascii=False)
         self.logger.info(f"JSON SALVO EM: {file_path} ")
