@@ -84,3 +84,19 @@ class ColumnSanitizer:
                     self.df[col] = self.df[col].str.replace(r"[^\w\s]", "", regex=True)
 
         return self
+
+
+def sanitize_output(df, output_file):
+    sanitized_df = ColumnSanitizer(df).sanitize_columns_names().df
+    columns = sanitized_df.columns
+    with open(output_file, "w") as f:
+        for col in columns:
+            f.write(f"{col}\n")
+        print(f"Arquivo txt com coluna salva em: {output_file}")
+
+
+if __name__ == "__main__":
+    file = "local_setup/data/bronze/senado/senadores/senado_senadores.csv"
+    dataframe = pd.read_csv(file, sep=";")
+    sanitize_output(dataframe, "local_setup/data/sanitized/senado_senadores.csv")
+    pass

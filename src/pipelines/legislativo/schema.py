@@ -80,3 +80,53 @@ class ParlamentarRadarSchema(DataFrameModel):
     class Config:
         strict = False
         coerce = True
+
+
+class SenadoresRadarSchema(DataFrameModel):
+    """VALIDACAO SENADO"""
+
+    identificacaoparlamentar_codigoparlamentar: Series[int] = Field(nullable=False)
+    identificacaoparlamentar_codigopubliconalegatual: Series[int] = Field(
+        nullable=False
+    )
+    identificacaoparlamentar_nomeparlamentar: Series[str] = Field(nullable=False)
+    identificacaoparlamentar_nomecompletoparlamentar: Series[str] = Field(
+        nullable=False
+    )
+    identificacaoparlamentar_sexoparlamentar: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_formatratamento: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_urlfotoparlamentar: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_urlpaginaparlamentar: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_emailparlamentar: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_telefones_telefone: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_siglapartidoparlamentar: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_ufparlamentar: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_bloco_codigobloco: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_bloco_nomebloco: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_bloco_nomeapelido: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_bloco_datacriacao: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_membromesa: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_membrolideranca: Series[str] = Field(nullable=True)
+    mandato_codigomandato: Series[str] = Field(nullable=True)
+    mandato_ufparlamentar: Series[str] = Field(nullable=True)
+    mandato_primeiralegislaturadomandato_numerolegislatura: Series[str] = Field(
+        nullable=True
+    )
+    mandato_primeiralegislaturadomandato_datainicio: Series[str] = Field(nullable=True)
+    mandato_primeiralegislaturadomandato_datafim: Series[str] = Field(nullable=True)
+    mandato_segundalegislaturadomandato_numerolegislatura: Series[str] = Field(
+        nullable=True
+    )
+    mandato_segundalegislaturadomandato_datainicio: Series[str] = Field(nullable=True)
+    mandato_segundalegislaturadomandato_datafim: Series[str] = Field(nullable=True)
+    mandato_descricaoparticipacao: Series[str] = Field(nullable=True)
+    mandato_suplentes_suplente: Series[str] = Field(nullable=True)
+    mandato_exercicios_exercicio: Series[str] = Field(nullable=True)
+    mandato_titular_descricaoparticipacao: Series[str] = Field(nullable=True)
+    mandato_titular_codigoparlamentar: Series[str] = Field(nullable=True)
+    mandato_titular_nomeparlamentar: Series[str] = Field(nullable=True)
+    identificacaoparlamentar_urlpaginaparticular: Series[str] = Field(nullable=True)
+
+    class Config:
+        strict = False
+        coerce = True
