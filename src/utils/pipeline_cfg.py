@@ -144,21 +144,24 @@ class GenericETL(ABC):
                 self.extract()
             except Exception as e:
                 self.logger.error(f"Problema na Extracao --- {e}")
+                raise
         if T:
             try:
                 self.logger.info("Iniciando Transformacao")
                 df = self.transform()
             except Exception as e:
                 self.logger.error(f"Problema na Transformacao --- {e}")
+                raise
         if V:
             try:
                 self.logger.info("Iniciando Validacao")
                 df = self.validate(df)
             except Exception as e:
                 self.logger.error(f"Problema na Validacao --- {e}")
+                raise
         if L:
             try:
                 self.logger.info("Iniciando Carga")
                 self.load(df)
             except Exception as e:
-                self.logger.error(f"Problema na Carga --- {e}")
+                raise
