@@ -156,6 +156,24 @@ class PostgreSQLManager:
             # print(f"❌ Erro ao inserir no banco: {e}")
             logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}")
 
+    @staticmethod
+    def truncate_table(
+        table_name: str, schema: str = "raw", log: Optional[logging.Logger] = None
+    ):
+        logger = log or logging.getLogger("PostgreSQLManager.send_to_db")
+        try:
+            pg = PostgreSQLManager()
+            connection = pg._connect()
+            cursor = connection.cursor()
+            cursor.execute(f"TRUNCATE TABLE {schema}.{table_name}" "")
+            cursor.close()
+            connection.commit()
+            connection.close()
+            logger.info(f"Tabela Truncada --- {schema}.{table_name}")
+        except Exception as e:
+            # print(f"❌ Erro ao inserir no banco: {e}")
+            logger.error(f"❌ ERRO AO TRUNCAR TABELA: {e}")
+
 
 def psyco_test():
     import psycopg2
