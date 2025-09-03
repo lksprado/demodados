@@ -10,15 +10,7 @@ class HttpJsonExtractor:
     """Faz requisicao HTTP com requests e/ou Salva em .json"""
 
     def __init__(self, log: Optional[logging.Logger] = None):
-        if log is None:
-            logging.basicConfig(
-                format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-                level=logging.INFO,
-            )
-            self.logger = logging.getLogger(self.__class__.__name__)
-        else:
-            self.logger = log
+        self.logger = log or logging.getLogger(self.__class__.__name__)
 
     def make_http_request(
         self, url: str, method: str = "GET", **kwargs
