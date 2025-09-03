@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
+import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -22,21 +23,30 @@ class PostgreSQLManager:
     ):
 
         if (
-            not self.check_environment_variables
+            not self.check_environment_variables()
             and db_name is None
             and db_user is None
             and db_password is None
             and db_host is None
             and db_port is None
         ):
-            raise ValueError("As credenciais do Banco não foram fornecidas.")
+            raise ValueError("CREDENCIAIS DO BANCO NAO FORAM FORNECIDAS.")
 
         self.db_name = db_name or os.getenv("DB_NAME")
         self.db_user = db_user or os.getenv("DB_USER")
         self.db_password = db_password or os.getenv("DB_PASSWORD")
         self.db_host = db_host or os.getenv("DB_HOST")
         self.db_port = db_port or os.getenv("DB_PORT")
-        self.logger = log or logging.getLogger(self.__class__.__name__)
+
+        if log is None:
+            logging.basicConfig(
+                format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+                level=logging.INFO,
+            )
+            self.logger = logging.getLogger(self.__class__.__name__)
+        else:
+            self.logger = log
 
     def _connect(self):
         try:
@@ -47,10 +57,10 @@ class PostgreSQLManager:
                 host=self.db_host,
                 port=self.db_port,
             )
-            self.logger.info("Conexão bem-sucedida ao banco de dados PostgreSQL.")
+            self.logger.debug("CONEXAO OK.")
             return connection
         except psycopg2.Error as e:
-            self.logger.error(f"Erro ao conectar ao banco de dados PostgreSQL: {e}")
+            self.logger.error(f"ERRO AO CONECTAR: {e}")
             return None
 
     def execute_query(self, query):
@@ -65,12 +75,10 @@ class PostgreSQLManager:
                 connection.close()
                 return result
             else:
-                self.logger.error(
-                    "Não foi possível estabelecer a conexão com o banco de dados."
-                )
+                self.logger.error("ERRO AO CONECTAR")
                 return None
         except psycopg2.Error as e:
-            self.logger.error(f"Erro ao executar a consulta SQL: {e}")
+            self.logger.error(f"ERRO AO EXECUTAR QUERY: {e}")
             return None
 
     def execute_insert(self, query, values):
@@ -82,27 +90,11 @@ class PostgreSQLManager:
                 connection.commit()
                 cursor.close()
                 connection.close()
-                self.logger.info("Inserção bem-sucedida.")
+                self.logger.debug("INSERT OK")
             else:
-                self.logger.error(
-                    "Não foi possível estabelecer a conexão com o banco de dados."
-                )
+                self.logger.error("ERRO AO CONECTAR")
         except psycopg2.Error as e:
-            self.logger.error(f"Erro ao executar a inserção SQL: {e}")
-
-    @staticmethod
-    def check_environment_variables():
-        if (
-            not os.getenv("DB_NAME")
-            or not os.getenv("DB_USER")
-            or not os.getenv("DB_PASSWORD")
-            or not os.getenv("DB_HOST")
-        ):
-            print("As variáveis de ambiente do banco não estão configuradas.")
-            return False
-        else:
-            print("Variáveis de ambiente para o Banco foram configuradas corretamente.")
-            return True
+            self.logger.error(f"ERRO NO INSERT --- {e}")
 
     def alchemy(self):
         self.engine = create_engine(
@@ -111,15 +103,32 @@ class PostgreSQLManager:
         return self.engine
 
     @staticmethod
-    def send_to_db(
-        df,
-        table_name,
+    def check_environment_variables():
+        logger = logging.getLogger(__name__)
+        if (
+            not os.getenv("DB_NAME")
+            or not os.getenv("DB_USER")
+            or not os.getenv("DB_PASSWORD")
+            or not os.getenv("DB_HOST")
+        ):
+            logger.error(
+                "VARIAVEIS DE AMBIENTE PARA CONEXAO NAO ESTAO CONFIGURADAS CORRETAMENTE"
+            )
+            return False
+        else:
+            logger.debug("VARIAVEIS DE AMBIENTE OK")
+            return True
+
+    @staticmethod
+    def send_df_to_db(
+        df: pd.DataFrame,
+        table_name: str,
         how="replace",
         filename=None,
         log: Optional[logging.Logger] = None,
     ):
         """
-        Envia um DataFrame para uma tabela no schema 'bronze' do PostgreSQL.
+        Envia um DataFrame para uma tabela no schema **raw** do PostgreSQL.
 
         Args:
             df (pd.DataFrame): DataFrame a ser inserido no banco de dados.
@@ -138,7 +147,7 @@ class PostgreSQLManager:
         Raises:
             Exibe erro no console se falhar na operação de inserção.
         """
-        logger = log or logging.getLogger("PostgreSQLManager.send_to_db")
+        logger = log or logging.getLogger(__name__)
         try:
             pg = PostgreSQLManager()
             connection = pg.alchemy()
@@ -149,18 +158,23 @@ class PostgreSQLManager:
             df["data_carga"] = datetime.now()
 
             df.to_sql(table_name, connection, schema="raw", if_exists=how, index=False)
-            # print(f"✅ {filename} Dados inseridos em {table_name}")
-            logger.info(f"✅ DADOS INSERIDOS EM RAW.{table_name}")
+            logger.info(f"✅ DADOS INSERIDOS EM raw.{table_name}")
 
-        except Exception as e:
-            # print(f"❌ Erro ao inserir no banco: {e}")
+        except psycopg2.Error as e:
             logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}")
 
     @staticmethod
     def truncate_table(
         table_name: str, schema: str = "raw", log: Optional[logging.Logger] = None
     ):
-        logger = log or logging.getLogger("PostgreSQLManager.send_to_db")
+        """TRUNCA TABELA PARA A INGESTAO
+
+        Args:
+            table_name (str): nome da tabela
+            schema (str, optional): Schema do bd. Defaults to "raw".
+            log (Optional[logging.Logger], optional): Logger. Defaults to None.
+        """
+        logger = log or logging.getLogger(__name__)
         try:
             pg = PostgreSQLManager()
             connection = pg._connect()
@@ -169,9 +183,8 @@ class PostgreSQLManager:
             cursor.close()
             connection.commit()
             connection.close()
-            logger.info(f"Tabela Truncada --- {schema}.{table_name}")
-        except Exception as e:
-            # print(f"❌ Erro ao inserir no banco: {e}")
+            logger.info(f"TABELA TRUNCADA --- {schema}.{table_name}")
+        except psycopg2.Error as e:
             logger.error(f"❌ ERRO AO TRUNCAR TABELA: {e}")
 
 
