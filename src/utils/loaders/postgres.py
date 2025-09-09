@@ -147,7 +147,7 @@ class PostgreSQLManager:
         Raises:
             Exibe erro no console se falhar na operação de inserção.
         """
-        logger = log or logging.getLogger(__name__)
+        logger = log or logging.getLogger("PostgreSQLManager")
         try:
             pg = PostgreSQLManager()
             connection = pg.alchemy()
@@ -174,7 +174,7 @@ class PostgreSQLManager:
             schema (str, optional): Schema do bd. Defaults to "raw".
             log (Optional[logging.Logger], optional): Logger. Defaults to None.
         """
-        logger = log or logging.getLogger(__name__)
+        logger = log or logging.getLogger("PostgreSQLManager")
         try:
             pg = PostgreSQLManager()
             connection = pg._connect()
