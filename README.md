@@ -4,11 +4,15 @@ Levantamento de dados para análises políticas  com foco em temas de cidadania,
 Este projeto utiliza Python, Airflow, PostgreSQL e dbt para estruturar, modelar e publicar dados públicos de forma acessível e confiável.
 
 ## Estrutura
-`./src` - Códigos-fonte para Extração, Transformação e Carga de dados\
-`./src/utils/` - Métodos e Classes reutilizáveis\
-`./src/pipelines/` - Lógica de execução de pipelines e schema de modelos para carga\
+
+**[demodados](https://github.com/lksprado/demodados)** Repositório que contém configuração do Banco de Dados e Códigos de Pipelines para Ingestão\
+**[Data Warehouse](https://github.com/lksprado/demodadosdw)** Repositório que os modelos de dados com dbt para o DW\
+**[Orquestrador](https://github.com/lksprado/demodados_orq)** Repositório que contém as DAG para execução do projeto de dados
+
+`./src` - Códigos-fonte para Extração, Transformação e Carga de dados. [Ir](https://github.com/lksprado/demodados/tree/main/src)\
+`./src/utils/` - Métodos e Classes reutilizáveis. [Ir](https://github.com/lksprado/demodados/tree/main/src/utils)\
+`./src/pipelines/` - Lógica de execução de pipelines e schema de modelos para carga. [Ir](https://github.com/lksprado/demodados/tree/main/src/pipelines)\
 `./demodadosDw` - Modelos de dados com dbt para DW no PostgresSQL\
-`./docs/` - Documentação aplicada
 
 ## Escopos
 Atualizado em 05/08/2025
@@ -29,4 +33,4 @@ O projeto segue a arquitetura de camadas em Data Lakehouse:
 | Airflow       | Orquestração e agendamento de pipelines      |
 | PostgreSQL    | Armazenamento e versionamento dos dados      |
 | dbt           | Modelagem e documentação dos dados           |
-| Pandera       | Validação de schema                          |
+| Pandera       | Validação de schema para carga raw           |
