@@ -8,7 +8,7 @@ Este repositório trata exclusivamente do processo de Ingestão..
 
 ## Estrutura Completa do Projeto
 
-**[demodados](https://github.com/lksprado/demodados)** Repositório que contém configuração do Banco de Dados e códigos de Pipelines para Ingestão. <<< *Você está aqui!*\
+**[demodados](https://github.com/lksprado/demodados)** Repositório contém config do Banco de Dados e Pipelines para Ingestão. <<< *Você está aqui!*\
 **[Data Warehouse](https://github.com/lksprado/demodadosdw)** Repositório para os modelos de dados SQL com dbt para o DW.\
 **[Orquestrador](https://github.com/lksprado/demodados_orq)** Repositório que contém as DAG para execução das pipelines com Airflow.
 
