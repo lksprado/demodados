@@ -2,7 +2,10 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Type
+from typing import Callable, Optional
+
+from pandera import DataFrameModel
+from pandera.errors import SchemaError
 
 from src.utils.extractors.https import HttpJsonExtractor
 from src.utils.loaders.postgres import PostgreSQLManager
@@ -10,14 +13,14 @@ from src.utils.loaders.postgres import PostgreSQLManager
 
 @dataclass
 class PipelineConfig:
-    """Contrato para configuração do pipeline. \n
-    Forneça um dicionário contendo: \n
+    """Contrato para configuração do pipeline.
+    Forneça um dicionário contendo:
     Args:
-        landing_dir: <diretorio arquivos bruto>
-        bronze_dir: <diretorio pos transformacao>
-        error_dir: <diretorio fallback se houver>
-        parameter_file: <arquivo para parametrizar>
-        db_table: <nome tabela banco de dados >
+        landing_dir: diretorio arquivos bruto
+        bronze_dir: diretorio pos transformacao
+        error_dir: diretorio fallback se houver
+        parameter_file: arquivo para parametrizar
+        db_table: nome tabela banco de dados
     """
 
     landing_dir: Path | str
@@ -47,7 +50,7 @@ class PipelineConfig:
 
     # Conveniência para garantir diretórios antes de usar
     def ensure_dirs(self) -> None:
-        """Garante diretórios"""
+        """Garante diretórios Landing e Bronze"""
         if not self.landing_dir.exists():
             self.landing_dir.mkdir(parents=True, exist_ok=True)
 
@@ -78,13 +81,29 @@ class PipelineConfig:
         return Path(self.bronze_dir) / self.bronze_file
 
 
-class GenericETL(ABC):
+class GenericETL:
     """Template para ET(v)L
     Args:
         cfg_dict: Dicionário de configuração com PipelineConfig
     """
 
-    def __init__(self, cfg_dict: dict, log: Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        cfg: dict,
+        extract_fn: Callable = None,
+        transform_fn: Callable = None,
+        validate_fn: Callable = None,
+        load_fn: Callable = None,
+        validator: DataFrameModel = None,
+        log: Optional[logging.Logger] = None,
+    ):
+        self.cfg = cfg
+        self.extract_fn = extract_fn
+        self.transform_fn = transform_fn
+        self.validate_fn = validate_fn
+        self.load_fn = load_fn
+        self.validator = validator
+        self.loader = PostgreSQLManager()
 
         if log is None:
             logging.basicConfig(
@@ -96,72 +115,59 @@ class GenericETL(ABC):
         else:
             self.logger = log
 
-        self.cfg = PipelineConfig(**cfg_dict)
-        ## CONVENIENCIA DAS VARIAVEIS
-        self.landing_dir = self.cfg.landing_dir
-        self.bronze_dir = self.cfg.bronze_dir
-        self.db_table = self.cfg.db_table
-        self.url_base = self.cfg.url_base
-        self.error_dir = self.cfg.error_dir
-        self.landing_file = self.cfg.landing_file
-        self.bronze_file = self.cfg.bronze_file
-        self.parameter_file = self.cfg.parameter_file
-        self.extractor = HttpJsonExtractor(log=self.logger)
-        self.loader = PostgreSQLManager()
-
-        # GARANTE DIRETÓRIOS
-        self.cfg.ensure_dirs()
-
     def generic_extraction(self):
-        """Extracao+salvo mais basica de 1 URL para 1 arquivo"""
-        self.extractor.fetch_and_save(
-            url=self.url_base, output_dir=self.landing_dir, filename=self.landing_file
+        """Extracao mais basica de 1 URL para 1 arquivo"""
+        self.logger.info("Iniciando Extracao...")
+        extractor = HttpJsonExtractor(self.logger)
+        extractor.fetch_and_save(
+            url=self.cfg.url_base,
+            output_dir=self.cfg.landing_dir,
+            filename=self.cfg.landing_file,
         )
 
-    @abstractmethod
     def extract(self):
-        raise NotImplementedError("Execute method must be overridden in subclasses")
+        if self.extract_fn:
+            return self.extract_fn(self.cfg)
+        else:
+            return self.generic_extraction()
 
-    @abstractmethod
-    def transform(self):
-        raise NotImplementedError("Execute method must be overridden in subclasses")
+    def transform(self, df=None):
+        if not self.transform_fn:
+            raise NotImplementedError("Nenhum transformer definido")
+        result = self.transform_fn(df, self.cfg)
+        if result is None:
+            raise ValueError("Transform function must return a DataFrame, got None")
+        return result
 
-    @abstractmethod
+    def generic_validator(self, df):
+        try:
+            return self.validator.validate(df)
+        except SchemaError as e:
+            self.logger.error(f"ERRO DE SCHEMA: {e}", exc_info=True)
+            raise
+
     def validate(self, df):
-        raise NotImplementedError("Execute method must be overridden in subclasses")
+        if self.validate_fn:
+            return self.validate_fn(df)
+        elif self.validator:
+            return self.generic_validator(df)
+        else:
+            raise NotImplementedError("Nenhum validator definido")
 
-    @abstractmethod
-    def load(self):
-        raise NotImplementedError("Execute method must be overridden in subclasses")
+    def generic_loader(self, df):
+        try:
+            self.loader.truncate_table(table_name=self.cfg.db_table, log=self.logger)
+        finally:
+            self.loader.send_df_to_db(
+                df=df,
+                table_name=self.cfg.db_table,
+                filename=self.cfg.bronze_file,
+                how="append",
+                log=self.logger,
+            )
 
-    def run_pipeline(
-        self, E: bool = False, T: bool = False, V: bool = False, L: bool = False
-    ):
-        df = None
-        if E:
-            try:
-                self.logger.info("Iniciando Extracao")
-                self.extract()
-            except Exception as e:
-                self.logger.error(f"Problema na Extracao --- {e}")
-                raise
-        if T:
-            try:
-                self.logger.info("Iniciando Transformacao")
-                df = self.transform()
-            except Exception as e:
-                self.logger.error(f"Problema na Transformacao --- {e}")
-                raise
-        if V:
-            try:
-                self.logger.info("Iniciando Validacao")
-                df = self.validate(df)
-            except Exception as e:
-                self.logger.error(f"Problema na Validacao --- {e}")
-                raise
-        if L:
-            try:
-                self.logger.info("Iniciando Carga")
-                self.load(df)
-            except Exception as e:
-                raise
+    def load(self, df):
+        if self.load_fn:
+            return self.load_fn(df, self.cfg)
+        else:
+            return self.generic_loader(df)
