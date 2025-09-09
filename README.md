@@ -3,14 +3,14 @@
 Levantamento de dados para análises políticas  com foco em temas de cidadania, democracia e advocacy no Brasil.\
 Este projeto utiliza Python, Airflow, PostgreSQL e dbt para estruturar, modelar e publicar dados públicos de forma acessível e confiável.
 
-Este repositório trata exclusivamente do processo de Ingestão..
+Este repositório trata exclusivamente do processo de Ingestão.
 
 
-## Estrutura Completa do Projeto
+## Estrutura de Repositórios  do Projeto
 
-**[demodados](https://github.com/lksprado/demodados)** Repositório contém config do Banco de Dados e Pipelines para Ingestão. <<< *Você está aqui!*\
-**[Data Warehouse](https://github.com/lksprado/demodadosdw)** Repositório para os modelos de dados SQL com dbt para o DW.\
-**[Orquestrador](https://github.com/lksprado/demodados_orq)** Repositório que contém as DAG para execução das pipelines com Airflow.
+**[Ingestor](https://github.com/lksprado/demodados)** (Este repo): pipelines de ingestão -> gera camadas Raw e Bronze
+**[Data Warehouse](https://github.com/lksprado/demodadosdw)** Repo para modelagem SQL com dbt -> gera Silver e Gold no DW.\
+**[Orquestrador](https://github.com/lksprado/demodados_orq)** Repo para orquestração.
 
 ## Ferramentas do Projeto
 | Ferramenta    | Uso                                          |
@@ -23,7 +23,6 @@ Este repositório trata exclusivamente do processo de Ingestão..
 
 
 ## Estrutura Repositório demodados
-Comece daqui para implementar pipelines de dados seguindo a documentação.
 
 `./src` - Códigos-fonte para Extração, Transformação e Carga de dados. [Ir](https://github.com/lksprado/demodados/tree/main/src)\
 `./src/utils/` - Métodos e Classes reutilizáveis. [Ir](https://github.com/lksprado/demodados/tree/main/src/utils)\
@@ -40,3 +39,23 @@ Atualizado em 09/09/2025
 O projeto como um todo segue a arquitetura de camadas em Data Lakehouse. Até aqui temos:
 - **Raw**: Arquivos brutos no formato de saída da Fonte.
 - **Bronze**: Arquivos pré-processados em formato tabular para Carga em schema raw do database.
+
+## Começando
+Certique ter o Python 3.12.1 e gerenciador de pacote `uv`.
+
+```
+# Clone o repositório
+git clone https://github.com/lksprado/demodados.git
+cd demodados
+
+# Crie e ative o ambiente virtual
+uv venv
+source .venv/bin/activate
+
+# Instale dependências
+uv install -r requirements.txt
+
+# Execute uma pipeline de exemplo
+python -m src.pipelines.legislativo.parlamento_deputados
+
+```
