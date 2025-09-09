@@ -31,12 +31,12 @@ class PipelineConfig:
     landing_file: str | None = None
     bronze_file: str | None = None
     parameter_file: str | None = None
+    criar_dirs: bool = True
 
     def __post_init__(self):
         # Normaliza diretórios para Path, mesmo se vierem como string dos dicts atuais
         # Faz normalizacoes/validacoes derivadas dos campos recebidos
         self.landing_dir = Path(self.landing_dir)
-
         self.landing_dir.mkdir(parents=True, exist_ok=True)
         if self.bronze_dir:
             self.bronze_dir = Path(self.bronze_dir)
@@ -47,6 +47,9 @@ class PipelineConfig:
         # Deriva bronze_file se não vier no config
         if self.bronze_file is None and self.landing_file:
             self.bronze_file = Path(self.landing_file).with_suffix(".csv").name
+
+        if self.criar_dirs:
+            self.ensure_dirs()
 
     # Conveniência para garantir diretórios antes de usar
     def ensure_dirs(self) -> None:
@@ -132,6 +135,7 @@ class GenericETL:
             return self.generic_extraction()
 
     def transform(self, df=None):
+        self.logger.info("Iniciando Transformacao...")
         if not self.transform_fn:
             raise NotImplementedError("Nenhum transformer definido")
         result = self.transform_fn(df, self.cfg)
@@ -140,7 +144,9 @@ class GenericETL:
         return result
 
     def generic_validator(self, df):
+        self.logger.info("Iniciando Validacao...")
         try:
+            self.logger.info("Validacao OK")
             return self.validator.validate(df)
         except SchemaError as e:
             self.logger.error(f"ERRO DE SCHEMA: {e}", exc_info=True)
@@ -148,6 +154,7 @@ class GenericETL:
 
     def validate(self, df):
         if self.validate_fn:
+            self.logger.info("Validacao OK")
             return self.validate_fn(df)
         elif self.validator:
             return self.generic_validator(df)
@@ -155,6 +162,7 @@ class GenericETL:
             raise NotImplementedError("Nenhum validator definido")
 
     def generic_loader(self, df):
+        self.logger.info("Iniciando Carga...")
         try:
             self.loader.truncate_table(table_name=self.cfg.db_table, log=self.logger)
         finally:
