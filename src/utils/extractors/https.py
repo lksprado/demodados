@@ -10,7 +10,15 @@ class HttpJsonExtractor:
     """Faz requisicao HTTP com requests e/ou Salva em .json"""
 
     def __init__(self, log: Optional[logging.Logger] = None):
-        self.logger = log or logging.getLogger(self.__class__.__name__)
+        if log is None:
+            logging.basicConfig(
+                format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+                level=logging.INFO,
+            )
+            self.logger = logging.getLogger(self.__class__.__name__)
+        else:
+            self.logger = log
 
     def make_http_request(
         self, url: str, method: str = "GET", **kwargs
@@ -23,8 +31,13 @@ class HttpJsonExtractor:
         Returns:
             Optional[dict]: Dicionario, JSON
         """
+        default_headers = {"Accept": "application/json"}
+        user_headers = kwargs.pop("headers", {})  # sobrescreve se o usuário passou algo
+        headers = {**default_headers, **user_headers}
         try:
-            response = requests.request(method=method, url=url, **kwargs)
+            response = requests.request(
+                method=method, url=url, headers=headers, **kwargs
+            )
             response.raise_for_status()
             return response.json()
         except ValueError:
