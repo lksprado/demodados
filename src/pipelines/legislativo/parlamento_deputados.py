@@ -2,11 +2,9 @@ import logging
 import re
 
 import pandas as pd
-from pandera.errors import SchemaError
 
 from src.pipelines.legislativo.schema import DeputadoSchema
 from src.utils.extractors.https import HttpJsonExtractor
-from src.utils.loaders.postgres import PostgreSQLManager
 from src.utils.pipeline_cfg import GenericETL, PipelineConfig
 from src.utils.transformers.cleaning import ColumnSanitizer
 from src.utils.transformers.json_parsers import normalize_json_object
@@ -96,7 +94,7 @@ if __name__ == "__main__":
     cfg = PipelineConfig(
         parameter_file="./src/params/id_deputados.csv",
         url_base="https://dadosabertos.camara.leg.br/api/v2/deputados/",
-        landing_dir="./data/landing/camara/deputados/",
+        landing_dir="./data/raw/camara/deputados/",
         bronze_dir="./data/bronze/camara/deputados/",
         error_dir="./data/error/camara/deputados/",
         db_table="parlamento_deputados_raw",

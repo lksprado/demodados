@@ -146,7 +146,7 @@ def run_governismo_pipeline(cfg):
 if __name__ == "__main__":
     PIPELINE_PARLAMENTARES_CONFIG_PRD = {
         "url_base": "https://radar.congressoemfoco.com.br/api/busca-parlamentar",
-        "landing_dir": "./data/landing/radar_congresso/parlamentares/",
+        "landing_dir": "./data/raw/radar_congresso/parlamentares/",
         "landing_file": "radar_parlamentares.json",
         "bronze_dir": "./data/bronze/radar_congresso/parlamentares/",
         "bronze_file": "radar_parlamentares.csv",
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     PIPELINE_GOVERNISMO_DEPUTADOS_CONFIG_PRD = {
         "url_base": "https://radar.congressoemfoco.com.br/api/governismo?casa=camara",
-        "landing_dir": "./data/landing/radar_congresso/governismo/",
+        "landing_dir": "./data/raw/radar_congresso/governismo/",
         "landing_file": "radar_governismo_deputados.json",
         "bronze_dir": "./data/bronze/radar_congresso/governismo/",
         "bronze_file": "radar_governismo_deputados.csv",
@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
     PIPELINE_GOVERNISMO_SENADORES_CONFIG_PRD = {
         "url_base": "https://radar.congressoemfoco.com.br/api/governismo?casa=senado",
-        "landing_dir": "./data/landing/radar_congresso/governismo/",
+        "landing_dir": "./data/raw/radar_congresso/governismo/",
         "landing_file": "radar_governismo_senadores.json",
         "bronze_dir": "./data/bronze/radar_congresso/governismo/",
         "bronze_file": "radar_governismo_senadores.csv",

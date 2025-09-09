@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     PIPELINE_SENADORES_CONFIG_PRD = {
         "url_base": "https://legis.senado.leg.br/dadosabertos/senador/lista/atual?v=4",
-        "landing_dir": "./data/landing/senado/senadores/",
+        "landing_dir": "./data/raw/senado/senadores/",
         "landing_file": "senado_senadores.json",
         "bronze_dir": "./data/bronze/senado/senadores/",
         "bronze_file": "senado_senadores.csv",
