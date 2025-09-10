@@ -8,7 +8,7 @@ Este repositório trata exclusivamente do processo de Ingestão.
 
 ## Estrutura de Repositórios  do Projeto
 
-**[Ingestor](https://github.com/lksprado/demodados)** (Este repo): pipelines de ingestão -> gera camadas Raw e Bronze
+**[Ingestor](https://github.com/lksprado/demodados)** (Este repo): pipelines de ingestão -> gera camadas Raw e Bronze.\
 **[Data Warehouse](https://github.com/lksprado/demodadosdw)** Repo para modelagem SQL com dbt -> gera Silver e Gold no DW.\
 **[Orquestrador](https://github.com/lksprado/demodados_orq)** Repo para orquestração.
 
