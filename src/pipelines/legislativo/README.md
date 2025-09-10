@@ -60,3 +60,13 @@ def run_governismo_pipeline(cfg):
   df = etl.validate(df)
   etl.load(df)
 ```
+➡️ Nesse exemplo:
+`extract` usa o método genérico (baixa 1 URL e salva em 1 arquivo).\
+`transform` é customizado.\
+`validate` usa o schema Pandera se informado.\
+`load` usa o carregador genérico para Postgres.
+
+Assim, implementar uma nova pipeline significa apenas:
+1. Criar um dicionário de configuração.
+2. Definir a função de transformação (mínimo necessário).
+3. Instanciar GenericETL e chamar etl.run().
