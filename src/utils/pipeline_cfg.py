@@ -106,7 +106,7 @@ class GenericETL:
         self.validate_fn = validate_fn
         self.load_fn = load_fn
         self.validator = validator
-        self.loader = PostgreSQLManager()
+        self.loader = None
 
         if log is None:
             logging.basicConfig(
@@ -163,6 +163,8 @@ class GenericETL:
 
     def generic_loader(self, df):
         self.logger.info("Iniciando Carga...")
+        if self.loader is None:
+            self.loader = PostgreSQLManager()
         try:
             self.loader.truncate_table(table_name=self.cfg.db_table, log=self.logger)
         finally:
