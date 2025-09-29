@@ -174,6 +174,15 @@ class PostgreSQLManager:
         except Exception as e:
             logger.error(f"❌ ERRO AO EXECUTAR QUERY: {e}", exc_info=True)
 
+    def fetchone(self, query: str):
+        try:
+            with self.engine.connect() as conn:
+                result = conn.exec_driver_sql(query).fetchone()
+            return result
+        except Exception as e:
+            logging.error(f"❌ ERRO NO fetchone: {e}", exc_info=True)
+            raise
+
 
 def psyco_test():
     import psycopg2
