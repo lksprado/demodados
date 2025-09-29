@@ -2,7 +2,7 @@
 from typing import Optional
 
 import pandera.pandas as pa  # Recomendação atual do Pandera
-from pandera import DataFrameModel, Field
+from pandera.pandas import DataFrameModel, Field
 from pandera.typing import Series
 
 
@@ -31,15 +31,15 @@ class DeputadoSchema(DataFrameModel):
     ultimostatus_urlfoto: Series[str] = Field(nullable=False)
     ultimostatus_email: Series[str] = Field(nullable=True)
     ultimostatus_data: Series[str] = Field(nullable=True)
-    ultimostatus_nomeeleitoral: Series[str]
+    ultimostatus_nomeeleitoral: Series[str] = Field(nullable=False)
     ultimostatus_gabinete_nome: Series[str] = Field(nullable=True)
     ultimostatus_gabinete_predio: Series[str] = Field(nullable=True)
     ultimostatus_gabinete_sala: Series[str] = Field(nullable=True)
     ultimostatus_gabinete_andar: Series[str] = Field(nullable=True)
     ultimostatus_gabinete_telefone: Series[str] = Field(nullable=True)
-    ultimostatus_gabinete_email: Series[str]
-    ultimostatus_situacao: Series[str]
-    ultimostatus_condicaoeleitoral: Series[str]
+    ultimostatus_gabinete_email: Series[str] = Field(nullable=True)
+    ultimostatus_situacao: Series[str] = Field(nullable=True)
+    ultimostatus_condicaoeleitoral: Series[str] = Field(nullable=True)
     ultimostatus_descricaostatus: Series[str] = Field(nullable=True)
 
     class Config:

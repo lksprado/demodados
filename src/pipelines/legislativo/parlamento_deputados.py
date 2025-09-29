@@ -34,7 +34,7 @@ cols_to_not_sanitize_values = [
 def extract_deputados(cfg: PipelineConfig):
     logger.info("Iniciando Extracao...")
     extractor = HttpJsonExtractor(logger)
-    df_ids = pd.read_csv(cfg.parameter_file)
+    df_ids = pd.read_csv(cfg.parameter_file, sep=";")
     for dep_id in df_ids["id"].to_list():
         url = f"{cfg.url_base}{dep_id}"
         output_file = f"{dep_id}_deputado.json"

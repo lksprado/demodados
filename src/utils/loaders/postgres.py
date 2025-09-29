@@ -19,18 +19,24 @@ class PostgreSQLManager:
         db_password=None,
         db_host=None,
         db_port=None,
+        connection=None,  # <- conexão externa (psycopg2)
+        engine=None,  # <- engine externa (sqlalchemy)
         log: Optional[logging.Logger] = None,
     ):
+        self.external_connection = connection
+        self.external_engine = engine
 
         if (
-            not self.check_environment_variables()
+            not self.external_connection
+            and not self.external_engine
+            and not self.check_environment_variables()
             and db_name is None
             and db_user is None
             and db_password is None
             and db_host is None
             and db_port is None
         ):
-            raise ValueError("CREDENCIAIS DO BANCO NAO FORAM FORNECIDAS.")
+            raise ValueError("CREDENCIAIS DO BANCO NAO FORNECIDAS.")
 
         self.db_name = db_name or os.getenv("DB_NAME")
         self.db_user = db_user or os.getenv("DB_USER")
@@ -49,6 +55,10 @@ class PostgreSQLManager:
             self.logger = log
 
     def _connect(self):
+        if self.external_connection:
+            self.logger.debug("USANDO CONEXÃO EXTERNA (injetada)")
+            return self.external_connection
+
         try:
             connection = psycopg2.connect(
                 dbname=self.db_name,
@@ -97,6 +107,10 @@ class PostgreSQLManager:
             self.logger.error(f"ERRO NO INSERT --- {e}")
 
     def alchemy(self):
+        if self.external_engine:
+            self.logger.debug("USANDO ENGINE EXTERNA (injetada)")
+            return self.external_engine
+
         self.engine = create_engine(
             f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
         )
@@ -119,73 +133,46 @@ class PostgreSQLManager:
             logger.debug("VARIAVEIS DE AMBIENTE OK")
             return True
 
-    @staticmethod
     def send_df_to_db(
+        self,
         df: pd.DataFrame,
         table_name: str,
         how="replace",
         filename=None,
-        log: Optional[logging.Logger] = None,
     ):
         """
         Envia um DataFrame para uma tabela no schema **raw** do PostgreSQL.
-
-        Args:
-            df (pd.DataFrame): DataFrame a ser inserido no banco de dados.
-            table_name (str): Nome da tabela de destino.
-            how (str, optional): Modo de inserção no banco. Pode ser 'replace', 'append' ou 'fail'. Default é 'replace'.
-            filename (str, optional): Nome do arquivo de origem para registrar no campo 'arquivo_origem'.
-
-        Comportamento:
-            - Adiciona as colunas 'data_carga' e, se fornecido, 'arquivo_origem'.
-            - Utiliza SQLAlchemy via PostgreSQLManager.
-            - Insere os dados na tabela especificada no schema 'bronze'.
-
-        Returns:
-            None. Os dados são persistidos no banco de dados.
-
-        Raises:
-            Exibe erro no console se falhar na operação de inserção.
         """
-        logger = log or logging.getLogger("PostgreSQLManager")
+        logger = self.logger
+
         try:
-            pg = PostgreSQLManager()
-            connection = pg.alchemy()
+            engine = self.alchemy()  # usa self.external_engine se tiver
 
             if filename:
                 df["arquivo_origem"] = filename
 
             df["data_carga"] = datetime.now()
 
-            df.to_sql(table_name, connection, schema="raw", if_exists=how, index=False)
+            df.to_sql(table_name, engine, schema="raw", if_exists=how, index=False)
             logger.info(f"✅ DADOS INSERIDOS EM raw.{table_name}")
 
-        except psycopg2.Error as e:
-            logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}")
+        except Exception as e:
+            logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}", exc_info=True)
 
-    @staticmethod
-    def truncate_table(
-        table_name: str, schema: str = "raw", log: Optional[logging.Logger] = None
-    ):
-        """TRUNCA TABELA PARA A INGESTAO
+    def execute_query(self, query: str):
+        logger = self.logger
 
-        Args:
-            table_name (str): nome da tabela
-            schema (str, optional): Schema do bd. Defaults to "raw".
-            log (Optional[logging.Logger], optional): Logger. Defaults to None.
-        """
-        logger = log or logging.getLogger("PostgreSQLManager")
         try:
-            pg = PostgreSQLManager()
-            connection = pg._connect()
+            connection = self._connect()  # usa self.external_connection se tiver
             cursor = connection.cursor()
-            cursor.execute(f"TRUNCATE TABLE {schema}.{table_name}" "")
+            cursor.execute(query)
             cursor.close()
             connection.commit()
             connection.close()
-            logger.info(f"TABELA TRUNCADA --- {schema}.{table_name}")
-        except psycopg2.Error as e:
-            logger.error(f"❌ ERRO AO TRUNCAR TABELA: {e}")
+            logger.info(f"QUERY EXECUTADA COM SUCESSO")
+
+        except Exception as e:
+            logger.error(f"❌ ERRO AO EXECUTAR QUERY: {e}", exc_info=True)
 
 
 def psyco_test():

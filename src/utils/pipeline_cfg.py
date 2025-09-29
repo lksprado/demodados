@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from pandera import DataFrameModel
 from pandera.errors import SchemaError
+from pandera.pandas import DataFrameModel
 
 from src.utils.extractors.https import HttpJsonExtractor
 from src.utils.loaders.postgres import PostgreSQLManager
@@ -106,7 +106,6 @@ class GenericETL:
         self.validate_fn = validate_fn
         self.load_fn = load_fn
         self.validator = validator
-        self.loader = None
 
         if log is None:
             logging.basicConfig(
@@ -163,18 +162,20 @@ class GenericETL:
 
     def generic_loader(self, df):
         self.logger.info("Iniciando Carga...")
-        if self.loader is None:
-            self.loader = PostgreSQLManager()
-        try:
-            self.loader.truncate_table(table_name=self.cfg.db_table, log=self.logger)
-        finally:
-            self.loader.send_df_to_db(
-                df=df,
-                table_name=self.cfg.db_table,
-                filename=self.cfg.bronze_file,
-                how="append",
-                log=self.logger,
-            )
+
+        if self.load_fn is None:
+            # fallback: cria um PostgreSQLManager "local" (como antes)
+            self.load_fn = PostgreSQLManager()
+
+        # aqui você decide se quer executar queries auxiliares antes
+        # por ex: self.loader.execute_query("TRUNCATE ...")
+
+        self.load_fn.send_df_to_db(
+            df=df,
+            table_name=self.cfg.db_table,
+            filename=self.cfg.bronze_file,
+            how="replace",
+        )
 
     def load(self, df):
         if self.load_fn:
