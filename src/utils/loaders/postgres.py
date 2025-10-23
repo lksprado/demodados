@@ -145,21 +145,21 @@ class PostgreSQLManager:
         Envia um DataFrame para uma tabela no schema **raw** do PostgreSQL.
         """
         logger = self.logger
+        if filename:
+            df["arquivo_origem"] = filename
+        df["data_carga"] = datetime.now()
 
-        try:
-            engine = self.alchemy()  # usa self.external_engine se tiver
+        engine = self.alchemy()
+        with engine.begin() as conn:
+            try:
+                df.to_sql(
+                    name=table_name, con=conn, schema="raw", if_exists=how, index=False
+                )
+                logger.info(f"✅ DADOS INSERIDOS EM raw.{table_name}")
 
-            if filename:
-                df["arquivo_origem"] = filename
-
-            df["data_carga"] = datetime.now()
-
-            df.to_sql(table_name, engine, schema="raw", if_exists=how, index=False)
-            logger.info(f"✅ DADOS INSERIDOS EM raw.{table_name}")
-
-        except Exception as e:
-            logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}", exc_info=True)
-            raise
+            except Exception as e:
+                logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}", exc_info=True)
+                raise
 
     def execute_query(self, query: str):
         logger = self.logger
