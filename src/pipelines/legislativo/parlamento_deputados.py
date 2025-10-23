@@ -101,3 +101,4 @@ if __name__ == "__main__":
     )
 
     run_deputados_pipeline(cfg)
+    # python -m src.pipelines.legislativo.parlamento_deputados

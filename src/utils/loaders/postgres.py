@@ -25,6 +25,7 @@ class PostgreSQLManager:
     ):
         self.external_connection = connection
         self.external_engine = engine
+        self.engine = engine
 
         if (
             not self.external_connection
