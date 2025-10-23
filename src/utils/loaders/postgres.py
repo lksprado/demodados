@@ -6,7 +6,7 @@ from typing import Optional
 import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 load_dotenv()  # take environment variables
 
@@ -162,26 +162,41 @@ class PostgreSQLManager:
 
     def execute_query(self, query: str):
         logger = self.logger
-
         try:
-            connection = self._connect()  # usa self.external_connection se tiver
-            cursor = connection.cursor()
-            cursor.execute(query)
-            cursor.close()
-            connection.commit()
-            connection.close()
-            logger.info(f"QUERY EXECUTADA COM SUCESSO")
-
+            if self.engine:
+                with self.engine.connect() as conn:
+                    conn.execute(text(query))  # <- usa SQLAlchemy
+                    logger.info("QUERY EXECUTADA COM SUCESSO")
+            else:
+                # fallback para psycopg2
+                connection = self._connect()
+                cursor = connection.cursor()
+                cursor.execute(query)
+                cursor.close()
+                connection.commit()
+                connection.close()
+                logger.info("QUERY EXECUTADA COM SUCESSO")
         except Exception as e:
             logger.error(f"❌ ERRO AO EXECUTAR QUERY: {e}", exc_info=True)
 
     def fetchone(self, query: str):
         try:
-            with self.engine.connect() as conn:
-                result = conn.exec_driver_sql(query).fetchone()
-            return result
+            if self.engine:
+                # SQLAlchemy modo
+                with self.engine.connect() as conn:
+                    result = conn.execute(text(query)).fetchone()
+                    return result
+            else:
+                # fallback para psycopg2
+                conn = self._connect()
+                cursor = conn.cursor()
+                cursor.execute(query)
+                result = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                return result
         except Exception as e:
-            logging.error(f"❌ ERRO NO fetchone: {e}", exc_info=True)
+            self.logger.error(f"❌ ERRO NO fetchone: {e}", exc_info=True)
             raise
 
 
