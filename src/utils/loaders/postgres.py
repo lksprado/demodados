@@ -74,39 +74,6 @@ class PostgreSQLManager:
             self.logger.error(f"ERRO AO CONECTAR: {e}")
             return None
 
-    def execute_query(self, query):
-        try:
-            connection = self._connect()
-            if connection:
-                cursor = connection.cursor()
-                cursor.execute(query)
-                result = cursor.fetchall()
-                cursor.close()
-                connection.commit()
-                connection.close()
-                return result
-            else:
-                self.logger.error("ERRO AO CONECTAR")
-                return None
-        except psycopg2.Error as e:
-            self.logger.error(f"ERRO AO EXECUTAR QUERY: {e}")
-            return None
-
-    def execute_insert(self, query, values):
-        try:
-            connection = self._connect()
-            if connection:
-                cursor = connection.cursor()
-                cursor.execute(query, values)
-                connection.commit()
-                cursor.close()
-                connection.close()
-                self.logger.debug("INSERT OK")
-            else:
-                self.logger.error("ERRO AO CONECTAR")
-        except psycopg2.Error as e:
-            self.logger.error(f"ERRO NO INSERT --- {e}")
-
     def alchemy(self):
         if self.external_engine:
             self.logger.debug("USANDO ENGINE EXTERNA (injetada)")
