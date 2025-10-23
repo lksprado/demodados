@@ -150,16 +150,15 @@ class PostgreSQLManager:
         df["data_carga"] = datetime.now()
 
         engine = self.alchemy()
-        with engine.begin() as conn:
-            try:
-                df.to_sql(
-                    name=table_name, con=conn, schema="raw", if_exists=how, index=False
-                )
-                logger.info(f"✅ DADOS INSERIDOS EM raw.{table_name}")
+        try:
+            df.to_sql(
+                name=table_name, con=engine, schema="raw", if_exists=how, index=False
+            )
+            logger.info(f"✅ DADOS INSERIDOS EM raw.{table_name}")
 
-            except Exception as e:
-                logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}", exc_info=True)
-                raise
+        except Exception as e:
+            logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}", exc_info=True)
+            raise
 
     def execute_query(self, query: str):
         logger = self.logger
