@@ -159,6 +159,7 @@ class PostgreSQLManager:
 
         except Exception as e:
             logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}", exc_info=True)
+            raise
 
     def execute_query(self, query: str):
         logger = self.logger
