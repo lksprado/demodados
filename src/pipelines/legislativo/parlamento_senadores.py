@@ -63,7 +63,6 @@ def run_senadores_pipeline(cfg):
         cfg=cfg,
         extract_fn=None,
         transform_fn=transform_senadores,
-        validate_fn=None,
         load_fn=None,
         validator=SenadoresRadarSchema,
         log=logger,

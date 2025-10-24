@@ -95,7 +95,6 @@ class GenericETL:
         cfg: dict,
         extract_fn: Callable = None,
         transform_fn: Callable = None,
-        validate_fn: Callable = None,
         load_fn: Callable = None,
         validator: DataFrameModel = None,
         log: Optional[logging.Logger] = None,
@@ -103,7 +102,6 @@ class GenericETL:
         self.cfg = cfg
         self.extract_fn = extract_fn
         self.transform_fn = transform_fn
-        self.validate_fn = validate_fn
         self.load_fn = load_fn
         self.validator = validator
 
@@ -142,7 +140,7 @@ class GenericETL:
             raise ValueError("Transform function must return a DataFrame, got None")
         return result
 
-    def generic_validator(self, df):
+    def validate(self, df):
         self.logger.info("Iniciando Validacao...")
         try:
             self.logger.info("Validacao OK")
@@ -150,15 +148,6 @@ class GenericETL:
         except SchemaError as e:
             self.logger.error(f"ERRO DE SCHEMA: {e}", exc_info=True)
             raise
-
-    def validate(self, df):
-        if self.validate_fn:
-            self.logger.info("Validacao OK")
-            return self.validate_fn(df)
-        elif self.validator:
-            return self.generic_validator(df)
-        else:
-            raise NotImplementedError("Nenhum validator definido")
 
     def generic_loader(self, df):
         self.logger.info("Iniciando Carga...")

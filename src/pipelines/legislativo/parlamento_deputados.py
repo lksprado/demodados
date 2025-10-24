@@ -78,13 +78,12 @@ def run_deputados_pipeline(cfg):
         cfg=cfg,
         extract_fn=extract_deputados,
         transform_fn=transform_deputados,
-        validate_fn=None,
         load_fn=None,
         validator=DeputadoSchema,
         log=logger,
     )
 
-    etl.extract()
+    # etl.extract()
     df = etl.transform()
     df = etl.validate(df)
     etl.load(df)
@@ -97,7 +96,7 @@ if __name__ == "__main__":
         landing_dir="./data/raw/camara/deputados/",
         bronze_dir="./data/bronze/camara/deputados/",
         error_dir="./data/error/camara/deputados/",
-        db_table="parlamento_deputados_raw",
+        db_table="raw_parlamento_deputados",
     )
 
     run_deputados_pipeline(cfg)

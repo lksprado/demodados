@@ -130,3 +130,32 @@ class SenadoresRadarSchema(DataFrameModel):
     class Config:
         strict = False
         coerce = True
+
+
+class ParlamentaresRankingSchema(DataFrameModel):
+    id: Series[int] = Field(nullable=True)
+    parliamentarianid: Series[str] = Field(nullable=True)
+    year: Series[int] = Field(nullable=True)
+    scorepresence: Series[float] = Field(nullable=True)
+    scoresavequota: Series[float] = Field(nullable=True)
+    scoresavequotapercentage: Series[float] = Field(nullable=True)
+    scoreprocess: Series[float] = Field(nullable=True)
+    scoreinternal: Series[float] = Field(nullable=True)
+    scoreprivileges: Series[float] = Field(nullable=True)
+    scorewastage: Series[float] = Field(nullable=True)
+    scoretotal: Series[float] = Field(nullable=False)
+    scoreranking: Series[int] = Field(nullable=True)
+    scorerankingbyposition: Series[int] = Field(nullable=True)
+    scorerankingbyparty: Series[int] = Field(nullable=True)
+    scorerankingbystate: Series[int] = Field(nullable=True)
+    scorerankingbypositionbystate: Series[int] = Field(nullable=True)
+    parliamentarianstatecount: Series[int] = Field(nullable=True)
+    parliamentarianpositionstatecount: Series[int] = Field(nullable=True)
+    active: Series[bool] = Field(nullable=True)
+    link: Series[str] = Field(nullable=True)
+    parliamentarianregister: Series[int] = Field(nullable=False)
+    position: Series[str] = Field(nullable=True)
+
+    class Config:
+        strict = False
+        coerce = True

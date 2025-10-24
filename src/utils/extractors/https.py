@@ -82,8 +82,8 @@ class HttpJsonExtractor:
 
 
 if __name__ == "__main__":
-    url = "https://dadosabertos.camara.leg.br/api/v2/deputados/204379"
+    url = "https://apirest2.politicos.org.br/api/parliamentarianranking?Include=Parliamentarian.State&Include=Parliamentarian.Party&Include=Parliamentarian.Organ&Include=Parliamentarian&take=700&StatusId=1&OrderBy=scoreRanking&Year=2025"
     output_dir = "./local_setup/data/teste/"
-    filename = "teste"
+    filename = "ranking_teste"
     extractor = HttpJsonExtractor()
     extractor.fetch_and_save(url=url, output_dir=output_dir, filename=filename)
