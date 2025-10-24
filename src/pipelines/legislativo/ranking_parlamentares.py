@@ -1,49 +1,69 @@
 """
-Pipeline Ranking Politicos.
-Extrai dados de https://politicos.org.br/en/Ranking
+Pipeline — Ranking Políticos
+
+Extrai, transforma, valida e carrega o ranking de parlamentares a partir da API:
+https://apirest2.politicos.org.br/api/parliamentarianranking
 
 Fluxo:
-1) extract_*: baixa JSON da API do Radar Congresso e salva em data/landing.
-2) transform_*: normaliza e salva CSV em data/bronze.
-3) load_*: valida com Pandera e insere na tabela Postgres correspondente.
+1) extract (opcional neste run): baixa o JSON em data/landing.
+2) transform_parlamentares(cfg): normaliza o JSON, enriquece campos e salva CSV em data/bronze.
+3) etl.validate(): reabre o CSV bronze e valida com Pandera (ParlamentaresRankingSchema).
+4) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
 
 Requisitos:
-- Conexão Postgres configurada em PostgreSQLManager
-- Schemas Pandera: ParlamentarRadarSchema, GovernismoSchema
+- PostgreSQL acessível e configurado no PostgreSQLManager.
+- Schema Pandera: ParlamentaresRankingSchema.
+- PipelineConfig com: url_base, landing_dir, landing_file, bronze_dir, bronze_file, db_table.
+
+Observações:
+- O script configura logging no entry-point (nível INFO). Em Airflow, não use basicConfig; use o logger do Airflow.
+- O CSV bronze usa separador ';' e deve ser lido com o mesmo sep em validate/load.
 """
 
-import json
 import logging
 import re
-
-import pandas as pd
+from pathlib import Path
 
 from src.pipelines.legislativo.schema import ParlamentaresRankingSchema
 from src.utils.pipeline_cfg import GenericETL, PipelineConfig
 from src.utils.transformers.cleaning import ColumnSanitizer
 from src.utils.transformers.json_parsers import make_df_from_json_list
 
-logger = logging.getLogger("Pipeline: raw_ranking_deputados")
+logging.basicConfig(
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+    force=True,  # garante que qualquer configuração anterior seja sobrescrita
+)
+
+logger = logging.getLogger("Pipeline: raw_ranking_parlamentares")
 
 
-def transform_parlamentares(df, cfg: PipelineConfig) -> pd.DataFrame:
+def transform_parlamentares(cfg: PipelineConfig) -> Path:
     # 1) Ler e normalizar nomes
     df_new = make_df_from_json_list(cfg.landing_filepath, list_key="data")
     df_new = ColumnSanitizer(df_new).sanitize_columns_names().df
 
-    def _extract_register(d):
-        if not isinstance(d, dict):
-            return None
-        reg = d.get("register")
-        if reg is not None:
-            return reg
-        text = d.get("otherInformations") or d.get("otherinformations") or ""
-        m = re.search(r"\d+", text)
-        return m.group(0) if m else None
-
-    df_new["parliamentarianregister"] = pd.to_numeric(
-        df_new["parliamentarian"].apply(_extract_register), errors="coerce"
-    ).astype("Int64")
+    df_new["parliamentarianregister"] = (
+        df_new["parliamentarian"]
+        .apply(
+            lambda d: (
+                d.get("register")
+                or (
+                    re.findall(
+                        r"\d+",
+                        (
+                            d.get("otherInformations")
+                            or d.get("otherinformations")
+                            or ""
+                        ),
+                    )
+                    or [None]
+                )[-1]
+            )
+        )
+        .astype("Int64")
+    )
     df_new["position"] = df_new["parliamentarian"].apply(lambda d: d.get("position"))
 
     # 3) Seleção final (só o que existir)
@@ -73,30 +93,25 @@ def transform_parlamentares(df, cfg: PipelineConfig) -> pd.DataFrame:
     ]
     df_new = df_new[[c for c in cols_to_keep if c in df_new.columns]]
 
-    cols = ["link"]
-
-    df_new = ColumnSanitizer(df_new).not_sanitize_columns_values(cols=cols).df
+    df_new = ColumnSanitizer(df_new).not_sanitize_columns_values(cols=["link"]).df
 
     df_new.to_csv(cfg.bronze_filepath, sep=";", index=False)
     logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
-    return df_new
 
 
-def run_ranking_pipeline(cfg):
+def run_ranking_pipeline(cfg: PipelineConfig) -> None:
     etl = GenericETL(
         cfg=cfg,
         extract_fn=None,
-        transform_fn=transform_parlamentares,
-        validate_fn=None,
         load_fn=None,
         validator=ParlamentaresRankingSchema,
         log=logger,
     )
 
     etl.extract()
-    df = etl.transform()
-    df = etl.validate(df)
-    etl.load(df)
+    transform_parlamentares(cfg)
+    etl.validate()
+    etl.load()
 
 
 if __name__ == "__main__":

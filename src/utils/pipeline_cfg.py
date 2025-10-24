@@ -1,9 +1,9 @@
 import logging
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+import pandas as pd
 from pandera.errors import SchemaError
 from pandera.pandas import DataFrameModel
 
@@ -85,89 +85,72 @@ class PipelineConfig:
 
 
 class GenericETL:
-    """Template para ET(v)L
-    Args:
-        cfg_dict: Dicionário de configuração com PipelineConfig
-    """
-
     def __init__(
         self,
-        cfg: dict,
-        extract_fn: Callable = None,
-        transform_fn: Callable = None,
-        load_fn: Callable = None,
-        validator: DataFrameModel = None,
+        cfg: PipelineConfig,
+        extract_fn: Callable[[PipelineConfig], Path] | None = None,
+        load_fn: Callable[[PipelineConfig], None] | None = None,
+        validator: DataFrameModel | None = None,
         log: Optional[logging.Logger] = None,
     ):
         self.cfg = cfg
         self.extract_fn = extract_fn
-        self.transform_fn = transform_fn
         self.load_fn = load_fn
         self.validator = validator
+        self.logger = log or logging.getLogger(self.__class__.__name__)
 
-        if log is None:
-            logging.basicConfig(
-                format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-                level=logging.INFO,
-            )
-            self.logger = logging.getLogger(self.__class__.__name__)
-        else:
-            self.logger = log
-
-    def generic_extraction(self):
-        """Extracao mais basica de 1 URL para 1 arquivo"""
-        self.logger.info("Iniciando Extracao...")
+    # --- EXTRACT ---
+    def generic_extraction(self) -> Path:
+        self.logger.info("Iniciando Extração...")
         extractor = HttpJsonExtractor(self.logger)
         extractor.fetch_and_save(
             url=self.cfg.url_base,
             output_dir=self.cfg.landing_dir,
             filename=self.cfg.landing_file,
         )
+        return self.cfg.landing_filepath
 
-    def extract(self):
-        if self.extract_fn:
-            return self.extract_fn(self.cfg)
-        else:
-            return self.generic_extraction()
+    def extract(self) -> Path:
+        if self.extract_fn is not None:
+            return self.extract_fn(self.cfg)  # custom usa cfg
+        return self.generic_extraction()  # genérico sem args
 
-    def transform(self, df=None):
-        self.logger.info("Iniciando Transformacao...")
-        if not self.transform_fn:
-            raise NotImplementedError("Nenhum transformer definido")
-        result = self.transform_fn(df, self.cfg)
-        if result is None:
-            raise ValueError("Transform function must return a DataFrame, got None")
-        return result
+    # --- VALIDATE ---
+    def validate(self) -> Path:
+        if not self.validator:
+            self.logger.info("Sem validador; pulando validação.")
+            return self.cfg.bronze_filepath
 
-    def validate(self, df):
-        self.logger.info("Iniciando Validacao...")
+        self.logger.info(f"Validando {self.cfg.bronze_filepath}...")
+        df = pd.read_csv(
+            self.cfg.bronze_filepath, sep=";"
+        )  # opcional: sep/encoding do cfg
         try:
-            self.logger.info("Validacao OK")
-            return self.validator.validate(df)
+            self.validator.validate(df)
+            self.logger.info("Validação OK")
+            return self.cfg.bronze_filepath
         except SchemaError as e:
             self.logger.error(f"ERRO DE SCHEMA: {e}", exc_info=True)
             raise
 
-    def generic_loader(self, df):
-        self.logger.info("Iniciando Carga...")
-
-        if self.load_fn is None:
-            # fallback: cria um PostgreSQLManager "local" (como antes)
-            self.load_fn = PostgreSQLManager()
-
-        # aqui você decide se quer executar queries auxiliares antes
-        # por ex: self.loader.execute_query("TRUNCATE ...")
-
-        self.load_fn.send_df_to_db(
+    # --- LOAD ---
+    def generic_loader(self) -> None:
+        self.logger.info(f"Carga de {self.cfg.bronze_filepath} -> {self.cfg.db_table}")
+        df = pd.read_csv(
+            self.cfg.bronze_filepath, sep=";"
+        )  # opcional: sep/encoding do cfg
+        PostgreSQLManager().send_df_to_db(
             df=df,
             table_name=self.cfg.db_table,
-            filename=self.cfg.bronze_file,
+            filename=self.cfg.bronze_filepath.name,
             how="replace",
         )
+        self.logger.info("Carga concluída")
 
-    def load(self, df):
-        if self.load_fn:
-            return self.load_fn(df, self.cfg)
+    def load(self) -> None:
+        if self.load_fn is not None:
+            # loader custom totalmente dirigido por cfg
+            self.load_fn(self.cfg)
         else:
-            return self.generic_loader(df)
+            # fallback usa o método que já conhece self.cfg
+            self.generic_loader()

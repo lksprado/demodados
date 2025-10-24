@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+from logging import NullHandler
 from typing import Optional
 
 import pandas as pd
@@ -8,7 +9,10 @@ import psycopg2
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-load_dotenv()  # take environment variables
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+logger.addHandler(NullHandler())
 
 
 class PostgreSQLManager:
@@ -45,15 +49,7 @@ class PostgreSQLManager:
         self.db_host = db_host or os.getenv("DB_HOST")
         self.db_port = db_port or os.getenv("DB_PORT")
 
-        if log is None:
-            logging.basicConfig(
-                format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-                level=logging.INFO,
-            )
-            self.logger = logging.getLogger(self.__class__.__name__)
-        else:
-            self.logger = log
+        self.logger = log or logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def _connect(self):
         if self.external_connection:
