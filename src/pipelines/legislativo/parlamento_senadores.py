@@ -25,7 +25,7 @@ import logging
 
 import pandas as pd
 
-from src.pipelines.legislativo.schema import SenadoresRadarSchema
+from src.pipelines.legislativo.schema import SenadorSchema
 from src.utils.pipeline_cfg import GenericETL, PipelineConfig
 from src.utils.transformers.cleaning import ColumnSanitizer
 
@@ -77,7 +77,7 @@ def run_senadores_pipeline(cfg):
         cfg=cfg,
         extract_fn=None,
         load_fn=None,
-        validator=SenadoresRadarSchema,
+        validator=SenadorSchema,
         log=logger,
     )
 

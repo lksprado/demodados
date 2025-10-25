@@ -21,13 +21,12 @@ Observações:
 """
 
 import logging
-import re
-from pathlib import Path
 
-from src.pipelines.legislativo.schema import ParlamentaresRankingSchema
+from src.pipelines.legislativo.schema import ParlamentarRankingSchema
+from src.utils.loaders.postgres import PostgreSQLManager
 from src.utils.pipeline_cfg import GenericETL, PipelineConfig
 from src.utils.transformers.cleaning import ColumnSanitizer
-from src.utils.transformers.json_parsers import make_df_from_json_list
+from src.utils.transformers.json_parsers import normalize_json_object
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
@@ -39,33 +38,9 @@ logging.basicConfig(
 logger = logging.getLogger("Pipeline: raw_ranking_parlamentares")
 
 
-def transform_parlamentares(cfg: PipelineConfig) -> Path:
-    # 1) Ler e normalizar nomes
-    df_new = make_df_from_json_list(cfg.landing_filepath, list_key="data")
+def transform_parlamentares(cfg: PipelineConfig):
+    df_new = normalize_json_object(cfg.landing_filepath, key="data")
     df_new = ColumnSanitizer(df_new).sanitize_columns_names().df
-
-    df_new["parliamentarianregister"] = (
-        df_new["parliamentarian"]
-        .apply(
-            lambda d: (
-                d.get("register")
-                or (
-                    re.findall(
-                        r"\d+",
-                        (
-                            d.get("otherInformations")
-                            or d.get("otherinformations")
-                            or ""
-                        ),
-                    )
-                    or [None]
-                )[-1]
-            )
-        )
-        .astype("Int64")
-    )
-    df_new["position"] = df_new["parliamentarian"].apply(lambda d: d.get("position"))
-
     # 3) Seleção final (só o que existir)
     cols_to_keep = [
         "id",
@@ -83,20 +58,47 @@ def transform_parlamentares(cfg: PipelineConfig) -> Path:
         "scorerankingbyposition",
         "scorerankingbyparty",
         "scorerankingbystate",
-        "scorerankingbypositionbystate",
-        "parliamentarianstatecount",
+        "parliamentariancount",
+        "parliamentarianpositioncount",
         "parliamentarianpositionstatecount",
+        "parliamentarianstatecount",
+        "scorerankingbypositionbystate",
+        "parliamentarianstaffmaxyear",
+        "parliamentarianstaffamountused",
+        "parliamentarianquotamaxyear",
+        "parliamentarianquotatotal",
         "active",
         "link",
-        "parliamentarianregister",
-        "position",
+        "parliamentarian_name",
+        "parliamentarian_email",
+        "parliamentarian_position",
+        "parliamentarian_otherinformations",
+        "parliamentarian_profession",
+        "parliamentarian_academic",
+        "parliamentarian_register",
+        "parliamentarian_phone",
+        "parliamentarian_instagram",
+        "parliamentarian_twitter",
+        "parliamentarian_facebook",
+        "parliamentarian_youtube",
     ]
     df_new = df_new[[c for c in cols_to_keep if c in df_new.columns]]
 
-    df_new = ColumnSanitizer(df_new).not_sanitize_columns_values(cols=["link"]).df
+    cols_no_clean = [
+        "link",
+        "parliamentarian_email" "parliamentarian_otherinformations",
+        "parliamentarian_instagram",
+        "parliamentarian_twitter",
+        "parliamentarian_facebook",
+        "parliamentarian_youtube",
+    ]
+
+    df_new = ColumnSanitizer(df_new).not_sanitize_columns_values(cols=cols_no_clean).df
 
     df_new.to_csv(cfg.bronze_filepath, sep=";", index=False)
     logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
+
+    return df_new
 
 
 def run_ranking_pipeline(cfg: PipelineConfig) -> None:
@@ -104,13 +106,15 @@ def run_ranking_pipeline(cfg: PipelineConfig) -> None:
         cfg=cfg,
         extract_fn=None,
         load_fn=None,
-        validator=ParlamentaresRankingSchema,
+        validator=ParlamentarRankingSchema,
         log=logger,
     )
 
     etl.extract()
     transform_parlamentares(cfg)
     etl.validate()
+    pg = PostgreSQLManager()
+    pg.execute_query(query="DROP TABLE raw.raw_ranking_parlamentares CASCADE")
     etl.load()
 
 
@@ -124,3 +128,4 @@ if __name__ == "__main__":
         "db_table": "raw_ranking_parlamentares",
     }
     run_ranking_pipeline(PipelineConfig(**PIPELINE_RANKING_PRD))
+    ## python -m src.pipelines.legislativo.ranking_parlamentares

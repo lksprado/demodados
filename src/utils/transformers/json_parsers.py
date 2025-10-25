@@ -33,9 +33,9 @@ def normalize_json_object(filepath: str, key: str = None) -> pd.DataFrame:
     if key:
         data = data.get(key, {})
 
-    if not isinstance(data, dict):
-        print(f"❌ Estrutura inesperada: esperada dict, veio {type(data)}")
-        return pd.DataFrame()
+    # if not isinstance(data, dict):
+    #     print(f"❌ Estrutura inesperada: esperada dict, veio {type(data)}")
+    #     return pd.DataFrame()
 
     try:
         df = pd.json_normalize(data, sep=".")

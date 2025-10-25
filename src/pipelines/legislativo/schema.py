@@ -12,7 +12,7 @@ class DeputadoSchema(DataFrameModel):
     id: Series[int] = Field(nullable=False)
     uri: Series[str] = Field(nullable=False)
     nomecivil: Series[str] = Field(nullable=False)
-    cpf: Series[int] = Field(nullable=False)
+    cpf: Series[str] = Field(nullable=False)
     sexo: Series[str] = Field(nullable=True)
     urlwebsite: Series[str] = Field(nullable=True)
     redesocial: Series[str] = Field(nullable=True)
@@ -82,7 +82,7 @@ class ParlamentarRadarSchema(DataFrameModel):
         coerce = True
 
 
-class SenadoresRadarSchema(DataFrameModel):
+class SenadorSchema(DataFrameModel):
     """VALIDACAO SENADO"""
 
     identificacaoparlamentar_codigoparlamentar: Series[int] = Field(nullable=False)
@@ -132,10 +132,10 @@ class SenadoresRadarSchema(DataFrameModel):
         coerce = True
 
 
-class ParlamentaresRankingSchema(DataFrameModel):
-    id: Series[int] = Field(nullable=True)
-    parliamentarianid: Series[str] = Field(nullable=True)
-    year: Series[int] = Field(nullable=True)
+class ParlamentarRankingSchema(DataFrameModel):
+    id: Series[int] = Field(nullable=False)
+    parliamentarianid: Series[str] = Field(nullable=False)
+    year: Series[int] = Field(nullable=False)
     scorepresence: Series[float] = Field(nullable=True)
     scoresavequota: Series[float] = Field(nullable=True)
     scoresavequotapercentage: Series[float] = Field(nullable=True)
@@ -148,13 +148,28 @@ class ParlamentaresRankingSchema(DataFrameModel):
     scorerankingbyposition: Series[int] = Field(nullable=True)
     scorerankingbyparty: Series[int] = Field(nullable=True)
     scorerankingbystate: Series[int] = Field(nullable=True)
-    scorerankingbypositionbystate: Series[int] = Field(nullable=True)
+    parliamentariancount: Series[int] = Field(nullable=True)
+    parliamentarianpositioncount: Series[int] = Field(nullable=True)
     parliamentarianstatecount: Series[int] = Field(nullable=True)
-    parliamentarianpositionstatecount: Series[int] = Field(nullable=True)
+    scorerankingbypositionbystate: Series[int] = Field(nullable=True)
+    parliamentarianstaffmaxyear: Series[float] = Field(nullable=True)
+    parliamentarianstaffamountused: Series[float] = Field(nullable=True)
+    parliamentarianquotamaxyear: Series[float] = Field(nullable=True)
+    parliamentarianquotatotal: Series[float] = Field(nullable=True)
     active: Series[bool] = Field(nullable=True)
     link: Series[str] = Field(nullable=True)
-    parliamentarianregister: Series[int] = Field(nullable=False)
-    position: Series[str] = Field(nullable=True)
+    parliamentarian_name: Series[str] = Field(nullable=False)
+    parliamentarian_email: Series[str] = Field(nullable=True)
+    parliamentarian_position: Series[str] = Field(nullable=False)
+    parliamentarian_otherinformations: Series[str] = Field(nullable=True)
+    parliamentarian_profession: Series[str] = Field(nullable=True)
+    parliamentarian_academic: Series[str] = Field(nullable=True)
+    parliamentarian_register: Series[str] = Field(nullable=True)
+    parliamentarian_phone: Series[str] = Field(nullable=True)
+    parliamentarian_instagram: Series[str] = Field(nullable=True)
+    parliamentarian_twitter: Series[str] = Field(nullable=True)
+    parliamentarian_facebook: Series[str] = Field(nullable=True)
+    parliamentarian_youtube: Series[str] = Field(nullable=True)
 
     class Config:
         strict = False
