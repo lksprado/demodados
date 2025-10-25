@@ -86,7 +86,8 @@ def transform_parlamentares(cfg: PipelineConfig):
 
     cols_no_clean = [
         "link",
-        "parliamentarian_email" "parliamentarian_otherinformations",
+        "parliamentarian_email",
+        "parliamentarian_otherinformations",
         "parliamentarian_instagram",
         "parliamentarian_twitter",
         "parliamentarian_facebook",
