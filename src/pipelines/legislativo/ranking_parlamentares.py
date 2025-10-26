@@ -45,6 +45,7 @@ def transform_parlamentares(cfg: PipelineConfig):
     cols_to_keep = [
         "id",
         "parliamentarianid",
+        "parliamentarian_state_prefix",
         "year",
         "scorepresence",
         "scoresavequota",
@@ -75,6 +76,7 @@ def transform_parlamentares(cfg: PipelineConfig):
         "parliamentarian_otherinformations",
         "parliamentarian_profession",
         "parliamentarian_academic",
+        "parliamentarian_datebirth",
         "parliamentarian_register",
         "parliamentarian_phone",
         "parliamentarian_instagram",

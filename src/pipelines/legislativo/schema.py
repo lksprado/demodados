@@ -135,6 +135,7 @@ class SenadorSchema(DataFrameModel):
 class ParlamentarRankingSchema(DataFrameModel):
     id: Series[int] = Field(nullable=False)
     parliamentarianid: Series[str] = Field(nullable=False)
+    parliamentarian_state_prefix: Series[str] = Field(nullable=True)
     year: Series[int] = Field(nullable=False)
     scorepresence: Series[float] = Field(nullable=True)
     scoresavequota: Series[float] = Field(nullable=True)
@@ -164,6 +165,7 @@ class ParlamentarRankingSchema(DataFrameModel):
     parliamentarian_otherinformations: Series[str] = Field(nullable=True)
     parliamentarian_profession: Series[str] = Field(nullable=True)
     parliamentarian_academic: Series[str] = Field(nullable=True)
+    parliamentarian_datebirth: Series[str] = Field(nullable=True)
     parliamentarian_register: Series[str] = Field(nullable=True)
     parliamentarian_phone: Series[str] = Field(nullable=True)
     parliamentarian_instagram: Series[str] = Field(nullable=True)
