@@ -1,9 +1,11 @@
 # demodados
-## Projeto
+[English Version](https://github.com/lksprado/demodados/tree/main/README-en.md)
+
+## O que é este projeto?
 Levantamento de dados para análises políticas  com foco em temas de cidadania, democracia e advocacy no Brasil.\
 Este projeto utiliza Python, Airflow, PostgreSQL e dbt para estruturar, modelar e publicar dados públicos de forma acessível e confiável.
 
-Este repositório trata exclusivamente do processo de Ingestão.
+**Este repositório trata exclusivamente do processo de Ingestão.**
 
 
 ## Estrutura de Repositórios  do Projeto
@@ -60,3 +62,9 @@ uv install -r requirements.txt
 python -m src.pipelines.legislativo.parlamento_deputados
 
 ```
+
+## Visualização
+Análise: https://www.linkedin.com/posts/activity-7388738017097646080-hrC2?utm_source=share&utm_medium=member_desktop&rcm=ACoAABe9KIQBnSGcGFjCIZscCTyc7RManCDQlqU
+![Deputados e Senadores](<images/Parliamentarians PTBR.png>)
+Análise: https://www.linkedin.com/posts/activity-7394749150577442817-UrNh?utm_source=share&utm_medium=member_desktop&rcm=ACoAABe9KIQBnSGcGFjCIZscCTyc7RManCDQlqU
+![Consulta](<images/Parliamentarians Tool PTBR.png>)
