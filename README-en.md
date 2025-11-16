@@ -30,11 +30,12 @@ This repository deals exclusively with the Ingestion process.
 `./src/params/` - Files for recursive parameterization, e.g., IDs for URLs. [Go](https://github.com/lksprado/demodados/tree/main/src/params)
 
 ## Data Sources
-Updated on 2025-10-26
+Updated on 2025-11-16
 - Chamber of Deputies (official API)
 - Radar Congresso (web scraping)
 - Federal Senate (official API)
 - Ranking Políticos (web scraping)
+- E-Cidadania (web scraping)
 
 ## Ingestion Architecture
 The project as a whole follows a layered Data Lakehouse architecture. So far we have:

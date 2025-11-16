@@ -32,11 +32,12 @@ Este projeto utiliza Python, Airflow, PostgreSQL e dbt para estruturar, modelar 
 `./src/params/`- Arquivos para parametrização recursiva. Ex: IDs para URLs. [Ir](https://github.com/lksprado/demodados/tree/main/src/params)
 
 ## Fontes de Dados
-Atualizado em 26/10/2025
+Atualizado em 16/11/2025
 - Câmara dos Deputados (API oficial)
 - Radar Congresso (Webscraping)
 - Senado Federal (API oficial)
 - Ranking Políticos (Webscraping)
+- E-Cidadania (Webscraping)
 
 ## Arquitetura de Ingestão
 O projeto como um todo segue a arquitetura de camadas em Data Lakehouse. Até aqui temos:

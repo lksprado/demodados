@@ -22,7 +22,7 @@ def extraction_status(cfg: dict):
     logger.info(f"Extraindo pagina...")
     parameter_df = pd.read_csv(cfg.parameter_file, sep=";")
     parameter_df = parameter_df.loc[
-        parameter_df["total_votos"] >= 10000, ["sigla", "numero", "ano"]
+        parameter_df["total_votos"] >= 5000, ["sigla", "numero", "ano"]
     ].drop_duplicates()
 
     extractor = HttpJsonExtractor(logger)
@@ -69,7 +69,7 @@ def run_ecidadania_status_pipeline(cfg: dict):
         log=logger,
     )
 
-    # etl.extract()
+    etl.extract()
     transform_status(cfg)
     etl.load()
 
