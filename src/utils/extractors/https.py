@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import requests
+from requests import Response
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
@@ -16,6 +17,7 @@ class HttpJsonExtractor:
     def __init__(self, log: Optional[logging.Logger] = None):
         # usa logger injetado OU um filho do logger do módulo
         self.logger = log or logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.default_headers = {"Accept": "application/json"}
 
     def make_http_request(
         self, url: str, method: str = "GET", **kwargs
@@ -28,9 +30,8 @@ class HttpJsonExtractor:
         Returns:
             Optional[dict]: Dicionario, JSON
         """
-        default_headers = {"Accept": "application/json"}
         user_headers = kwargs.pop("headers", {})  # sobrescreve se o usuário passou algo
-        headers = {**default_headers, **user_headers}
+        headers = {**self.default_headers, **user_headers}
         try:
             response = requests.request(
                 method=method, url=url, headers=headers, **kwargs
@@ -39,6 +40,17 @@ class HttpJsonExtractor:
             return response.json()
         except ValueError:
             self.logger.error(f"RESPOSTA NAO E JSON: {url}")
+        except requests.RequestException as e:
+            self.logger.error(f"ERRO NA REQUISICAO: {url} --- {e}")
+        return None
+
+    def make_http_request_text(self, url: str) -> Response.text:
+        """Faz Requisicao GET e retorna Response.text"""
+        try:
+            response = requests.get(url, timeout=10, headers=self.default_headers)
+            response.raise_for_status()
+            logger.info(f"{response} --- {url}")
+            return response.text
         except requests.RequestException as e:
             self.logger.error(f"ERRO NA REQUISICAO: {url} --- {e}")
         return None
