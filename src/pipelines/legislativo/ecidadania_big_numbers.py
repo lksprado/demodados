@@ -76,9 +76,12 @@ def extraction_big_numbers(cfg: dict):
 
 
 def transform_bignumbers(cfg: PipelineConfig) -> Path:
+    data = []
     for f in cfg.landing_dir.iterdir():
         df = pd.read_csv(f, sep=";", dtype=str)
         df = ColumnSanitizer(df).sanitize_columns_names().df
+        data.append(df)
+    df = pd.concat(data, ignore_index=False)
     df.to_csv(cfg.bronze_filepath, sep=";", index=False)
     logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
 
@@ -92,9 +95,9 @@ def run_ecidadania_bignumbers_pipeline(cfg: dict):
         log=logger,
     )
 
-    etl.extract()
+    # etl.extract()
     transform_bignumbers(cfg)
-    etl.load()
+    # etl.load()
 
 
 if __name__ == "__main__":

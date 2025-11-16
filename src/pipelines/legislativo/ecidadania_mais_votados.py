@@ -120,9 +120,12 @@ def extraction_mais_votados(cfg: dict):
 
 
 def transform_mais_votados(cfg: PipelineConfig) -> Path:
+    data = []
     for f in cfg.landing_dir.iterdir():
         df = pd.read_csv(f, sep=";", dtype=str)
         df = ColumnSanitizer(df).sanitize_columns_names().df
+        data.append(df)
+    df = pd.concat(data, ignore_index=False)
     df.to_csv(cfg.bronze_filepath, sep=";", index=False)
     logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
 
