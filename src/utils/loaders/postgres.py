@@ -141,6 +141,7 @@ class PostgreSQLManager:
                 logger.info("QUERY EXECUTADA COM SUCESSO")
         except Exception as e:
             logger.error(f"❌ ERRO AO EXECUTAR QUERY: {e}", exc_info=True)
+            raise
 
     def fetchone(self, query: str):
         try:
