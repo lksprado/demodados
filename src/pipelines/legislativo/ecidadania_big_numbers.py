@@ -97,7 +97,7 @@ def run_ecidadania_bignumbers_pipeline(cfg: dict):
 
     # etl.extract()
     transform_bignumbers(cfg)
-    # etl.load()
+    etl.load()
 
 
 if __name__ == "__main__":
