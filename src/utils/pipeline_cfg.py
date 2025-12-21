@@ -7,8 +7,8 @@ import pandas as pd
 from pandera.errors import SchemaError
 from pandera.pandas import DataFrameModel
 
-from src.utils.extractors.https import HttpJsonExtractor
-from src.utils.loaders.postgres import PostgreSQLManager
+from ..utils.extractors.https import HttpJsonExtractor
+from ..utils.loaders.postgres import PostgreSQLManager
 
 
 @dataclass
