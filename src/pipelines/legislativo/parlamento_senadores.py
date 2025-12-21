@@ -25,9 +25,9 @@ import logging
 
 import pandas as pd
 
-from src.pipelines.legislativo.schema import SenadorSchema
-from src.utils.pipeline_cfg import GenericETL, PipelineConfig
-from src.utils.transformers.cleaning import ColumnSanitizer
+from ...utils.pipeline_cfg import GenericETL, PipelineConfig
+from ...utils.transformers.cleaning import ColumnSanitizer
+from .schema import SenadorSchema
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
@@ -81,9 +81,9 @@ def run_senadores_pipeline(cfg):
         log=logger,
     )
 
-    etl.extract()
+    # etl.extract()
     transform_senadores(cfg)
-    etl.validate()
+    # etl.validate()
     etl.load()
 
 

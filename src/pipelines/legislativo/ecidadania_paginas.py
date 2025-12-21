@@ -5,10 +5,10 @@ from pathlib import Path
 import pandas as pd
 from bs4 import BeautifulSoup as bs
 
-from src.utils.extractors.https import HttpJsonExtractor
-from src.utils.pipeline_cfg import GenericETL, PipelineConfig
-from src.utils.transformers.cleaning import ColumnSanitizer
-from src.utils.transformers.html_parsers import make_bs_object
+from ...utils.extractors.https import HttpJsonExtractor
+from ...utils.pipeline_cfg import GenericETL, PipelineConfig
+from ...utils.transformers.cleaning import ColumnSanitizer
+from ...utils.transformers.html_parsers import make_bs_object
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",

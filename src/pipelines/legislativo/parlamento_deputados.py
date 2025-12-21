@@ -24,11 +24,11 @@ import logging
 
 import pandas as pd
 
-from src.pipelines.legislativo.schema import DeputadoSchema
-from src.utils.extractors.https import HttpJsonExtractor
-from src.utils.pipeline_cfg import GenericETL, PipelineConfig
-from src.utils.transformers.cleaning import ColumnSanitizer
-from src.utils.transformers.json_parsers import normalize_json_object
+from ...utils.extractors.https import HttpJsonExtractor
+from ...utils.pipeline_cfg import GenericETL, PipelineConfig
+from ...utils.transformers.cleaning import ColumnSanitizer
+from ...utils.transformers.json_parsers import normalize_json_object
+from .schema import DeputadoSchema
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",

@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.pipelines.legislativo.schema import GovernismoSchema
-from src.utils.pipeline_cfg import GenericETL, PipelineConfig
+from ...utils.pipeline_cfg import GenericETL, PipelineConfig
+from .schema import GovernismoSchema
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",

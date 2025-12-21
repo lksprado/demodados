@@ -25,9 +25,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.pipelines.legislativo.schema import ParlamentarRadarSchema
-from src.utils.pipeline_cfg import GenericETL, PipelineConfig
-from src.utils.transformers.cleaning import ColumnSanitizer
+from ...utils.pipeline_cfg import GenericETL, PipelineConfig
+from ...utils.transformers.cleaning import ColumnSanitizer
+from .schema import ParlamentarRadarSchema
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
