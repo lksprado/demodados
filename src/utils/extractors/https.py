@@ -6,6 +6,8 @@ from typing import Optional
 
 import requests
 from requests import Response
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
@@ -14,10 +16,26 @@ logger.addHandler(NullHandler())
 class HttpJsonExtractor:
     """Faz requisicao HTTP com requests e/ou Salva em .json"""
 
-    def __init__(self, log: Optional[logging.Logger] = None):
-        # usa logger injetado OU um filho do logger do módulo
+    def __init__(
+        self,
+        log: Optional[logging.Logger] = None,
+        retries: int = 3,
+        backoff_factor: float = 2.0,
+    ):
         self.logger = log or logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.default_headers = {"Accept": "application/json"}
+
+        retry_strategy = Retry(
+            total=retries,
+            backoff_factor=backoff_factor,  # espera 2s, 4s, 8s entre tentativas
+            status_forcelist=[429, 502, 503, 504],
+            allowed_methods=["GET", "POST"],
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session = requests.Session()
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     def make_http_request(
         self, url: str, method: str = "GET", **kwargs
@@ -33,7 +51,7 @@ class HttpJsonExtractor:
         user_headers = kwargs.pop("headers", {})  # sobrescreve se o usuário passou algo
         headers = {**self.default_headers, **user_headers}
         try:
-            response = requests.request(
+            response = self.session.request(
                 method=method, url=url, headers=headers, **kwargs
             )
             response.raise_for_status()
