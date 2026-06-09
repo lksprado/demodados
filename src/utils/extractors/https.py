@@ -1,5 +1,6 @@
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logging import NullHandler
 from pathlib import Path
 from typing import Optional
@@ -92,6 +93,43 @@ class HttpJsonExtractor:
             json.dump(json_data, f, indent=4, ensure_ascii=False)
 
         self.logger.info(f"JSON SALVO EM: {file_path}")
+
+    def fetch_and_save_many(
+        self,
+        tasks: list[tuple[str, str]],
+        output_dir: Path | str,
+        workers: int = 1,
+    ) -> None:
+        """Faz múltiplas requisições e persiste cada resultado em disco.
+
+        Args:
+            tasks: lista de (url, filename)
+            output_dir: diretório de destino
+            workers: número de threads (1 = sequencial, padrão)
+        """
+
+        def _one(url: str, filename: str) -> None:
+            data = self.make_http_request(url)
+            if data is not None:
+                self.save_response(data, output_dir, filename)
+            else:
+                self.logger.warning(f"Sem dados de {url}")
+
+        if workers == 1:
+            for url, filename in tasks:
+                _one(url, filename)
+            return
+
+        self.logger.info(
+            f"Iniciando extração com {workers} threads ({len(tasks)} tarefas)..."
+        )
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_one, url, fn): fn for url, fn in tasks}
+            for fut in as_completed(futures):
+                try:
+                    fut.result()
+                except Exception as e:
+                    self.logger.error(f"Erro em {futures[fut]}: {e}", exc_info=True)
 
     def fetch_and_save(self, url: str, output_dir: Path | str, filename: str, **kwargs):
         """Faz requisicao e persiste em disco.

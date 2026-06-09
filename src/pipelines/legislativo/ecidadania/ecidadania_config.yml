@@ -1,0 +1,26 @@
+environments:
+  local:
+    base_raw: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/senado/ecidadania"
+    base_bronze: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/senado/ecidadania"
+  airflow:
+    base_raw: "/usr/local/airflow/mylake/raw/demodados/senado/ecidadania"
+    base_bronze: "/usr/local/airflow/mylake/bronze/demodados/senado/ecidadania"
+
+sources:
+  big_numbers:
+    base_url: "https://www12.senado.leg.br/ecidadania/principalmateria"
+    subpath: "big_numbers"
+    bronze_file: "ecidadania_bignumbers_consolidado.csv"
+    db_table: "raw_ecidadania_bignumbers"
+
+  mais_votados:
+    base_url: "https://www12.senado.leg.br/ecidadania/principalmateria"
+    subpath: "mais_votados"
+    bronze_file: "ecidadania_mais_votados_consolidado.csv"
+    db_table: "raw_ecidadania_mais_votados"
+
+  paginas:
+    base_url: "https://www12.senado.leg.br/ecidadania/principalmateria?p="
+    subpath: "paginas"
+    bronze_file: "ecidadania_paginas_consolidado.csv"
+    db_table: "raw_ecidadania_paginas"

@@ -1,0 +1,29 @@
+environments:
+  local:
+    base_raw: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/radar_congresso"
+    base_bronze: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/radar_congresso"
+  airflow:
+    base_raw: "/usr/local/airflow/mylake/raw/demodados/radar_congresso"
+    base_bronze: "/usr/local/airflow/mylake/bronze/demodados/radar_congresso"
+
+sources:
+  governismo_deputados:
+    base_url: "https://radar.congressoemfoco.com.br/api/governismo?casa=camara"
+    subpath: "governismo"
+    landing_file: "radar_governismo_deputados.json"
+    bronze_file: "radar_governismo_deputados.csv"
+    db_table: "raw_radar_governismo_deputados"
+
+  governismo_senadores:
+    base_url: "https://radar.congressoemfoco.com.br/api/governismo?casa=senado"
+    subpath: "governismo"
+    landing_file: "radar_governismo_senadores.json"
+    bronze_file: "radar_governismo_senadores.csv"
+    db_table: "raw_radar_governismo_senadores"
+
+  parlamentares:
+    base_url: "https://radar.congressoemfoco.com.br/api/busca-parlamentar"
+    subpath: "parlamentares"
+    landing_file: "radar_parlamentares.json"
+    bronze_file: "radar_parlamentares.csv"
+    db_table: "raw_radar_parlamentares"

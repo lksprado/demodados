@@ -1,0 +1,24 @@
+environments:
+  local:
+    base_raw: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/senado"
+    base_bronze: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/senado"
+    base_parameters: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/senado/ecidadania/paginas"
+  airflow:
+    base_raw: "/usr/local/airflow/mylake/raw/demodados/senado"
+    base_bronze: "/usr/local/airflow/mylake/bronze/demodados/senado"
+    base_parameters: "/usr/local/airflow/mylake/bronze/demodados/senado/ecidadania/paginas"
+
+sources:
+  senadores:
+    base_url: "https://legis.senado.leg.br/dadosabertos/senador/lista/atual?v=4"
+    subpath: "senadores"
+    landing_file: "parlamento_senadores.json"
+    bronze_file: "parlamento_senadores.csv"
+    db_table: "raw_parlamento_senadores"
+
+  status:
+    base_url: "https://legis.senado.leg.br/dadosabertos/processo"
+    subpath: "status"
+    bronze_file: "senado_status_consolidado.csv"
+    db_table: "raw_senado_status"
+    parameter_file: "ecidadania_paginas_consolidado.csv"

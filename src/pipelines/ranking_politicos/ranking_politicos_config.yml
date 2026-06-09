@@ -1,0 +1,15 @@
+environments:
+  local:
+    base_raw: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/ranking"
+    base_bronze: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/ranking"
+  airflow:
+    base_raw: "/usr/local/airflow/mylake/raw/demodados/ranking"
+    base_bronze: "/usr/local/airflow/mylake/bronze/demodados/ranking"
+
+sources:
+  parlamentares:
+    base_url: "https://apirest2.politicos.org.br/api/parliamentarianranking?Include=Parliamentarian.State&Include=Parliamentarian.Party&Include=Parliamentarian.Organ&Include=Parliamentarian&take=700&StatusId=1&OrderBy=scoreRanking&Year=2025"
+    subpath: "parlamentares"
+    landing_file: "ranking_parlamentares.json"
+    bronze_file: "ranking_parlamentares.csv"
+    db_table: "raw_ranking_parlamentares"

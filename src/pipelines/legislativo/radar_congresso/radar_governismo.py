@@ -5,7 +5,7 @@ Extrai, transforma, valida e carrega dados de governismo a partir da API:
 https://radar.congressoemfoco.com.br/api/governismo?casa={camara|senado}
 
 Fluxo:
-1) extract (opcional neste run): baixa o JSON em data/landing.
+1) etl.extract(): baixa o JSON em data/landing.
 2) transform_governismo(cfg): normaliza o JSON, converte wide→long e salva CSV em data/bronze.
 3) etl.validate(): reabre o CSV bronze e valida com Pandera (GovernismoSchema).
 4) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from ...utils.pipeline_cfg import GenericETL, PipelineConfig
-from .schema import GovernismoSchema
+from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
+from ..schema import GovernismoSchema
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
@@ -38,6 +38,8 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("Pipeline: raw_radar_governismo")
+
+_CONFIG_FILE = Path(__file__).parent / "radar_congresso_config.yml"
 
 
 def transform_governismo(cfg: PipelineConfig) -> Path:
@@ -67,7 +69,7 @@ def transform_governismo(cfg: PipelineConfig) -> Path:
             # Extrai "YYYY-MM-DD" do nome da coluna trimestral vinda da API
             date_match = re.search(r"\d{4}-\d{2}-\d{2}", c)
             if date_match:
-                date = date_match.group(0)  # Captura a data
+                date = date_match.group(0)
             new_col_name = f"{date}"
             cols_dict[c] = new_col_name
         df_parlamentares = df_parlamentares.rename(columns=cols_dict)
@@ -88,7 +90,7 @@ def transform_governismo(cfg: PipelineConfig) -> Path:
         raise
 
 
-def run_governismo_pipeline(cfg):
+def run_pipeline(cfg: PipelineConfig):
     etl = GenericETL(
         cfg=cfg,
         extract_fn=None,
@@ -104,23 +106,12 @@ def run_governismo_pipeline(cfg):
 
 
 if __name__ == "__main__":
-    PIPELINE_GOVERNISMO_DEPUTADOS_CONFIG_PRD = {
-        "url_base": "https://radar.congressoemfoco.com.br/api/governismo?casa=camara",
-        "landing_dir": "./data/raw/radar_congresso/governismo/",
-        "landing_file": "radar_governismo_deputados.json",
-        "bronze_dir": "./data/bronze/radar_congresso/governismo/",
-        "bronze_file": "radar_governismo_deputados.csv",
-        "db_table": "raw_radar_governismo_deputados",
-    }
-
-    PIPELINE_GOVERNISMO_SENADORES_CONFIG_PRD = {
-        "url_base": "https://radar.congressoemfoco.com.br/api/governismo?casa=senado",
-        "landing_dir": "./data/raw/radar_congresso/governismo/",
-        "landing_file": "radar_governismo_senadores.json",
-        "bronze_dir": "./data/bronze/radar_congresso/governismo/",
-        "bronze_file": "radar_governismo_senadores.csv",
-        "db_table": "raw_radar_governismo_senadores",
-    }
-
-    run_governismo_pipeline(PipelineConfig(**PIPELINE_GOVERNISMO_DEPUTADOS_CONFIG_PRD))
-    run_governismo_pipeline(PipelineConfig(**PIPELINE_GOVERNISMO_SENADORES_CONFIG_PRD))
+    config_dep = load_source_config(
+        _CONFIG_FILE, source="governismo_deputados", env="local"
+    )
+    config_sen = load_source_config(
+        _CONFIG_FILE, source="governismo_senadores", env="local"
+    )
+    run_pipeline(PipelineConfig(**config_dep))
+    run_pipeline(PipelineConfig(**config_sen))
+    # python -m src.pipelines.legislativo.radar_congresso.radar_governismo

@@ -1,3 +1,19 @@
+"""
+Pipeline — Mais Votados (E-Cidadania / Senado Federal)
+
+Extrai, transforma e carrega as proposições mais votadas da plataforma e-Cidadania:
+https://www12.senado.leg.br/ecidadania/principalmateria
+
+Fluxo:
+1) extract_mais_votados(cfg): requisita a página HTML e salva CSV em data/landing.
+2) transform_mais_votados(cfg): consolida os CSVs de landing em bronze.
+3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
+
+Observações:
+- O script configura logging no entry-point (INFO). Em Airflow, remova basicConfig e use o logger do Airflow.
+- O separador do CSV bronze é ';' e deve ser consistente em transform/validate/load.
+"""
+
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -5,10 +21,10 @@ from pathlib import Path
 import pandas as pd
 from bs4 import BeautifulSoup as bs
 
-from ...utils.extractors.https import HttpJsonExtractor
-from ...utils.pipeline_cfg import GenericETL, PipelineConfig
-from ...utils.transformers.cleaning import ColumnSanitizer
-from ...utils.transformers.html_parsers import make_bs_object
+from ....utils.extractors.https import HttpJsonExtractor
+from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
+from ....utils.transformers.cleaning import ColumnSanitizer
+from ....utils.transformers.html_parsers import make_bs_object
 
 logging.basicConfig(
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
@@ -17,12 +33,31 @@ logging.basicConfig(
     force=True,  # garante que qualquer configuração anterior seja sobrescrita
 )
 
-logger = logging.getLogger("Pipeline: ecidadania_mais_votados_raw")
+logger = logging.getLogger("Pipeline: raw_ecidadania_mais_votados")
+
+_CONFIG_FILE = Path(__file__).parent / "ecidadania_config.yml"
+
+tipo_map = {
+    "ECD": "EMENDA(S) DA CÂMARA DOS DEPUTADOS A PROJETO DE LEI DO SENADO",
+    "EDS": "EMENDA(S) DA CÂMARA DOS DEPUTADOS A PROJETO DE DECRETO LEGISLATIVO",
+    "MPV": "MEDIDA PROVISÓRIA",
+    "PDL": "PROJETO DE DECRETO LEGISLATIVO",
+    "PDS": "PROJETO DE DECRETO LEGISLATIVO (SF)",
+    "PEC": "PROPOSTA DE EMENDA À CONSTITUIÇÃO",
+    "PL": "PROJETO DE LEI",
+    "PLC": "PROJETO DE LEI DA CÂMARA",
+    "PLP": "PROJETO DE LEI COMPLEMENTAR",
+    "PLS": "PROJETO DE LEI DO SENADO",
+    "PLV": "PROJETO DE LEI DE CONVERSÃO (CN)",
+    "PRS": "PROJETO DE RESOLUÇÃO DO SENADO",
+    "SCD": "SUBSTITUTIVO DA CÂMARA DOS DEPUTADOS A PROJETO DE LEI DO SENADO",
+    "SDS": "SUBSTITUTIVO DA CÂMARA DOS DEPUTADOS A PROJETO DE DECRETO LEGISLATIVO",
+    "SUG": "SUGESTÃO",
+}
 
 
 def parser_mais_votados(soup_object: bs) -> pd.DataFrame:
     soup = soup_object
-
     container = soup.find("div", id="container-consulta-publica")
 
     if not container:
@@ -31,26 +66,7 @@ def parser_mais_votados(soup_object: bs) -> pd.DataFrame:
         )
         return pd.DataFrame()
 
-    tipo_map = {
-        "ECD": "EMENDA(S) DA CÂMARA DOS DEPUTADOS A PROJETO DE LEI DO SENADO",
-        "EDS": "EMENDA(S) DA CÂMARA DOS DEPUTADOS A PROJETO DE DECRETO LEGISLATIVO",
-        "MPV": "MEDIDA PROVISÓRIA",
-        "PDL": "PROJETO DE DECRETO LEGISLATIVO",
-        "PDS": "PROJETO DE DECRETO LEGISLATIVO (SF)",
-        "PEC": "PROPOSTA DE EMENDA À CONSTITUIÇÃO",
-        "PL": "PROJETO DE LEI",
-        "PLC": "PROJETO DE LEI DA CÂMARA",
-        "PLP": "PROJETO DE LEI COMPLEMENTAR",
-        "PLS": "PROJETO DE LEI DO SENADO",
-        "PLV": "PROJETO DE LEI DE CONVERSÃO (CN)",
-        "PRS": "PROJETO DE RESOLUÇÃO DO SENADO",
-        "SCD": "SUBSTITUTIVO DA CÂMARA DOS DEPUTADOS A PROJETO DE LEI DO SENADO",
-        "SDS": "SUBSTITUTIVO DA CÂMARA DOS DEPUTADOS A PROJETO DE DECRETO LEGISLATIVO",
-        "SUG": "SUGESTÃO",
-    }
-
     data_extracao = datetime.today().strftime("%Y-%m-%d")
-
     results = []
 
     for item in container.find_all("div", class_="resumo-materia"):
@@ -107,7 +123,8 @@ def parser_mais_votados(soup_object: bs) -> pd.DataFrame:
     return df
 
 
-def extraction_mais_votados(cfg: dict):
+def extract_mais_votados(cfg: PipelineConfig):
+    logger.info("Iniciando Extracao...")
     data_extracao = datetime.today().strftime("%Y-%m-%d")
     filename = f"mais_votados_{data_extracao}.csv"
     landing_file = cfg.landing_dir / filename
@@ -119,21 +136,28 @@ def extraction_mais_votados(cfg: dict):
     logger.info(f"Extracao Completa em {landing_file}")
 
 
-def transform_mais_votados(cfg: PipelineConfig) -> Path:
-    data = []
+def transform_mais_votados(cfg: PipelineConfig):
+    logger.info("Iniciando Transformacao...")
+    dataframes = []
     for f in cfg.landing_dir.iterdir():
-        df = pd.read_csv(f, sep=";", dtype=str)
-        df = ColumnSanitizer(df).sanitize_columns_names().df
-        data.append(df)
-    df = pd.concat(data, ignore_index=False)
-    df.to_csv(cfg.bronze_filepath, sep=";", index=False)
+        try:
+            data = pd.read_csv(f, sep=";", dtype=str)
+            if not data.empty:
+                df = ColumnSanitizer(data).sanitize_columns_names().df
+                dataframes.append(df)
+        except Exception as e:
+            print(f"ERRO AO TRANSFORMAR {f} --- {e}")
+            continue
+
+    dfs = pd.concat(dataframes, ignore_index=True)
+    dfs.to_csv(cfg.bronze_filepath, sep=";", index=False)
     logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
 
 
-def run_ecidadania_mais_votados_pipeline(cfg: dict):
+def run_pipeline(cfg: PipelineConfig):
     etl = GenericETL(
         cfg=cfg,
-        extract_fn=extraction_mais_votados,
+        extract_fn=extract_mais_votados,
         load_fn=None,
         validator=None,
         log=logger,
@@ -145,15 +169,6 @@ def run_ecidadania_mais_votados_pipeline(cfg: dict):
 
 
 if __name__ == "__main__":
-    PIPELINE_ECIDADANIA_MAISVOTADOS_CONFIG_PRD = {
-        "url_base": "https://www12.senado.leg.br/ecidadania/principalmateria",
-        "landing_dir": "./data/raw/senado/ecidadania/mais_votados",
-        # "landing_file": None,
-        "bronze_dir": "./data/bronze/senado/ecidadania/mais_votados",
-        "bronze_file": "ecidadania_mais_votados_consolidado.csv",
-        "db_table": "raw_ecidadania_mais_votados",
-    }
-
-    run_ecidadania_mais_votados_pipeline(
-        PipelineConfig(**PIPELINE_ECIDADANIA_MAISVOTADOS_CONFIG_PRD)
-    )
+    config = load_source_config(_CONFIG_FILE, source="mais_votados", env="local")
+    run_pipeline(PipelineConfig(**config))
+    # python -m src.pipelines.legislativo.ecidadania.ecidadania_mais_votados
