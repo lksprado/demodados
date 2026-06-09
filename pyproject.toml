@@ -9,6 +9,7 @@ dependencies = [
     "bs4>=0.0.2",
     "dbt-core>=1.7,<2",
     "dbt-postgres>=1.7,<2",
+    "duckdb>=1.5.3",
     "isort>=6.0.1",
     "it>=1.0.0",
     "pandas>=2.3.1",
