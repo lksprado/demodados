@@ -1,0 +1,46 @@
+environments:
+  local:
+    base_raw: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/camara"
+    base_bronze: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/camara"
+    base_error: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/camara/error"
+    base_parameters: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/camara/parameters"
+  airflow:
+    base_raw: "/usr/local/airflow/mylake/raw/demodados/camara"
+    base_bronze: "/usr/local/airflow/mylake/bronze/demodados/camara"
+    base_error: "/usr/local/airflow/mylake/raw/demodados/camara/error"
+    base_parameters: "/usr/local/airflow/mylake/raw/demodados/camara/parameters"
+
+sources:
+  legislatura:
+    base_url: "https://dadosabertos.camara.leg.br/api/v2/deputados/"
+    subpath: "legislatura"
+    bronze_file: "legislaturas_deputados.csv"
+    db_table: "raw_camara_legislaturas"
+
+  deputados:
+    base_url: "https://dadosabertos.camara.leg.br/api/v2/deputados/"
+    subpath: "deputados"
+    bronze_file: "parlamento_deputados.csv"
+    db_table: "raw_camara_deputados"
+    parameter_file: "id_deputados.csv"
+
+  votacoes:
+    base_url: "https://dadosabertos.camara.leg.br/api/v2/votacoes"
+    subpath: "votacoes"
+    bronze_file: "parlamento_votacoes.csv"
+    db_table: "raw_camara_votacoes"
+    output_param_file: "id_votacoes.csv"
+
+  votos_deputados:
+    base_url: "https://dadosabertos.camara.leg.br/api/v2/votacoes/"
+    subpath: "votos_deputados"
+    bronze_file: "parlamento_votos_deputados.csv"
+    db_table: "raw_parlamento_votos_deputados"
+    parameter_file: "id_votacoes.csv"
+
+  votos_orientacao:
+    base_url: "https://dadosabertos.camara.leg.br/api/v2/votacoes/"
+    subpath: "votos_orientacao"
+    bronze_file: "parlamento_votos_orientacao.csv"
+    db_table: "raw_parlamento_votos_orientacao"
+    parameter_file: "id_votacoes.csv"
