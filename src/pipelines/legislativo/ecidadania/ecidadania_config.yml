@@ -1,10 +1,10 @@
 environments:
   local:
-    base_raw: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/senado/ecidadania"
-    base_bronze: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/senado/ecidadania"
+    base_raw: "/media/lucas/Files/2.Projetos/0.mylake/raw/demodados/ecidadania"
+    base_bronze: "/media/lucas/Files/2.Projetos/0.mylake/bronze/demodados/ecidadania"
   airflow:
-    base_raw: "/usr/local/airflow/mylake/raw/demodados/senado/ecidadania"
-    base_bronze: "/usr/local/airflow/mylake/bronze/demodados/senado/ecidadania"
+    base_raw: "/usr/local/airflow/mylake/raw/demodados/ecidadania"
+    base_bronze: "/usr/local/airflow/mylake/bronze/demodados/ecidadania"
 
 sources:
   big_numbers:

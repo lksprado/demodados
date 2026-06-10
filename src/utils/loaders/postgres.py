@@ -53,7 +53,7 @@ class PostgreSQLManager:
 
     def _connect(self):
         if self.external_connection:
-            self.logger.debug("USANDO CONEXÃO EXTERNA (injetada)")
+            self.logger.debug("Usando conexao externa (injetada)")
             return self.external_connection
 
         try:
@@ -64,15 +64,15 @@ class PostgreSQLManager:
                 host=self.db_host,
                 port=self.db_port,
             )
-            self.logger.debug("CONEXAO OK.")
+            self.logger.debug("Conexao ok.")
             return connection
         except psycopg2.Error as e:
-            self.logger.error(f"ERRO AO CONECTAR: {e}")
+            self.logger.error(f"❌ Erro ao conectar: {e}", exc_info=True)
             return None
 
     def alchemy(self):
         if self.external_engine:
-            self.logger.debug("USANDO ENGINE EXTERNA (injetada)")
+            self.logger.debug("Usando engine externa (injetada)")
             return self.external_engine
 
         self.engine = create_engine(
@@ -90,11 +90,11 @@ class PostgreSQLManager:
             or not os.getenv("DB_HOST")
         ):
             logger.error(
-                "VARIAVEIS DE AMBIENTE PARA CONEXAO NAO ESTAO CONFIGURADAS CORRETAMENTE"
+                "❌ Variaveis de ambiente para conexao nao estao configuradas corretamente"
             )
             return False
         else:
-            logger.debug("VARIAVEIS DE AMBIENTE OK")
+            logger.debug("Variaveis de ambiente OK")
             return True
 
     def send_df_to_db(
@@ -117,10 +117,10 @@ class PostgreSQLManager:
             df.to_sql(
                 name=table_name, con=engine, schema="raw", if_exists=how, index=False
             )
-            logger.info(f"✅ DADOS INSERIDOS EM raw.{table_name}")
+            logger.info(f"✅ Dados inseridos em raw.{table_name}")
 
         except Exception as e:
-            logger.error(f"❌ ERRO AO INSERIR NO BANCO: {e}", exc_info=True)
+            logger.error(f"❌ Erro ao inserir no banco: {e}", exc_info=True)
             raise
 
     def execute_query(self, query: str):
@@ -129,7 +129,7 @@ class PostgreSQLManager:
             if self.engine:
                 with self.engine.connect() as conn:
                     conn.execute(text(query))  # <- usa SQLAlchemy
-                    logger.info("QUERY EXECUTADA COM SUCESSO")
+                    logger.info("✅ Query executada com sucesso")
             else:
                 # fallback para psycopg2
                 connection = self._connect()
@@ -138,9 +138,9 @@ class PostgreSQLManager:
                 cursor.close()
                 connection.commit()
                 connection.close()
-                logger.info("QUERY EXECUTADA COM SUCESSO")
+                logger.info("✅ Query executada com sucesso")
         except Exception as e:
-            logger.error(f"❌ ERRO AO EXECUTAR QUERY: {e}", exc_info=True)
+            logger.error(f"❌ Erro ao executar query: {e}", exc_info=True)
             raise
 
     def fetchone(self, query: str):
@@ -160,7 +160,7 @@ class PostgreSQLManager:
                 conn.close()
                 return result
         except Exception as e:
-            self.logger.error(f"❌ ERRO NO fetchone: {e}", exc_info=True)
+            self.logger.error(f"❌ Erro no fetchone: {e}", exc_info=True)
             raise
 
 

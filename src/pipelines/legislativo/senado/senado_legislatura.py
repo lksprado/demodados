@@ -1,23 +1,3 @@
-"""
-Pipeline — Senadores (Senado Federal)
-
-Extrai, transforma, valida e carrega dados de senadores de uma determinada legislatura a partir da API:
-https://legis.senado.leg.br/dadosabertos/senador/lista/legislatura/
-
-Fluxo:
-1) etl.extract(): baixa o JSON em data/landing usando o extractor genérico.
-2) transform_senadores(cfg): normaliza o JSON, sanitiza colunas e salva CSV em data/bronze.
-3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
-
-Requisitos:
-- PostgreSQL acessível e configurado no PostgreSQLManager.
-- PipelineConfig com: url_base, landing_dir, landing_file, bronze_dir, bronze_file, db_table.
-
-Observações:
-- O script configura logging no entry-point (nível INFO). Em Airflow, não use basicConfig; use o logger do Airflow.
-- O CSV bronze usa separador ';' e deve ser lido com o mesmo sep em validate/load.
-"""
-
 import json
 import logging
 from pathlib import Path
@@ -28,20 +8,13 @@ from ....utils.extractors.https import HttpJsonExtractor
 from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
 from ....utils.transformers.cleaning import ColumnSanitizer
 
-logging.basicConfig(
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-    force=True,  # garante que qualquer configuração anterior seja sobrescrita
-)
-
-logger = logging.getLogger("Pipeline: raw_parlamento_senadores")
+logger = logging.getLogger("raw_senado_legislaturas")
 
 _CONFIG_FILE = Path(__file__).parent / "senado_config.yml"
 
 
 def range_extract_legislatura(cfg: PipelineConfig):
-    logger.info("Iniciando Extracao...")
+    logger.info("📥 Iniciando extracao...")
     extractor = HttpJsonExtractor(logger)
 
     for leg in range(50, 59):
@@ -52,8 +25,8 @@ def range_extract_legislatura(cfg: PipelineConfig):
         )
 
 
-def extract_legislatura(cfg: PipelineConfig):
-    logger.info("Iniciando Extracao...")
+def extract(cfg: PipelineConfig):
+    logger.info("📥 Iniciando extracao...")
     extractor = HttpJsonExtractor(logger)
     current = 58
 
@@ -64,8 +37,8 @@ def extract_legislatura(cfg: PipelineConfig):
     )
 
 
-def transform_legislatura(cfg: PipelineConfig):
-    logger.info("Iniciando Transformacao...")
+def transform(cfg: PipelineConfig):
+    logger.info("🔄 Iniciando transformacao...")
     dataframes = []
     for f in cfg.landing_dir.iterdir():
         try:
@@ -86,7 +59,7 @@ def transform_legislatura(cfg: PipelineConfig):
             dataframes.append(df)
 
         except Exception as e:
-            logger.error(f"Erro ao transformar {f}: {e}", exc_info=True)
+            logger.error(f"❌ Erro ao transformar {f}: {e}", exc_info=True)
             continue
 
     dfs = pd.concat(dataframes, ignore_index=True)
@@ -96,19 +69,22 @@ def transform_legislatura(cfg: PipelineConfig):
 def run_pipeline(cfg):
     etl = GenericETL(
         cfg=cfg,
-        extract_fn=extract_legislatura,
+        extract_fn=extract,
         load_fn=None,
-        validator=None,
         log=logger,
     )
 
     # etl.extract()
-    transform_legislatura(cfg)
-    # etl.validate()
+    transform(cfg)
     etl.load()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
     config = load_source_config(_CONFIG_FILE, source="legislatura", env="local")
     run_pipeline(PipelineConfig(**config))
     # python -m src.pipelines.legislativo.senado.senado_legislatura

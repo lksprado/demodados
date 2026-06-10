@@ -6,9 +6,8 @@ https://radar.congressoemfoco.com.br/api/busca-parlamentar
 
 Fluxo:
 1) etl.extract(): baixa o JSON em data/landing.
-2) transform_parlamentares(cfg): normaliza o JSON, sanitiza colunas e salva CSV em data/bronze.
-3) etl.validate(): reabre o CSV bronze e valida com Pandera (ParlamentarRadarSchema).
-4) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
+2) transform(cfg): normaliza o JSON, sanitiza colunas e salva CSV em data/bronze.
+3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
 
 Requisitos:
 - PostgreSQL acessível e configurado no PostgreSQLManager.
@@ -27,26 +26,18 @@ import pandas as pd
 
 from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
 from ....utils.transformers.cleaning import ColumnSanitizer
-from ..schema import ParlamentarRadarSchema
 
-logging.basicConfig(
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-    force=True,  # garante que qualquer configuração anterior seja sobrescrita
-)
-
-logger = logging.getLogger("Pipeline: raw_radar_parlamentares")
+logger = logging.getLogger("raw_radar_parlamentares")
 
 _CONFIG_FILE = Path(__file__).parent / "radar_congresso_config.yml"
 
 
-def transform_parlamentares(cfg: PipelineConfig) -> Path:
+def transform(cfg: PipelineConfig) -> Path:
     df = pd.read_json(cfg.landing_filepath, dtype=str)
     df = ColumnSanitizer(df).sanitize_columns_names().df
 
     df.to_csv(cfg.bronze_filepath, sep=";", index=False)
-    logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
+    logger.info(f"💾 CSV salvo em: {cfg.bronze_filepath}")
 
 
 def run_pipeline(cfg: PipelineConfig):
@@ -54,17 +45,20 @@ def run_pipeline(cfg: PipelineConfig):
         cfg=cfg,
         extract_fn=None,
         load_fn=None,
-        validator=ParlamentarRadarSchema,
         log=logger,
     )
 
     etl.extract()
-    transform_parlamentares(cfg)
-    etl.validate()
+    transform(cfg)
     etl.load()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
     config = load_source_config(_CONFIG_FILE, source="parlamentares", env="local")
     run_pipeline(PipelineConfig(**config))
     # python -m src.pipelines.legislativo.radar_congresso.radar_parlamentares

@@ -1,24 +1,3 @@
-"""
-Pipeline — Orientações de Votação (Câmara dos Deputados)
-
-Extrai, transforma e carrega as orientações de bancada por votação a partir da API:
-https://dadosabertos.camara.leg.br/api/v2/votacoes/{id}/orientacoes
-
-Fluxo:
-1) extract_orientacoes(cfg): baixa um JSON por votação em data/landing.
-2) transform_orientacoes(cfg): normaliza os JSONs, consolida e salva CSV em data/bronze.
-3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
-
-Requisitos:
-- PostgreSQL acessível e configurado no PostgreSQLManager.
-- PipelineConfig com: parameter_file (IDs de votações), url_base, landing_dir, bronze_dir, bronze_file, db_table.
-
-Observações:
-- O script configura logging no entry-point (INFO). Em Airflow, remova basicConfig e use o logger do Airflow.
-- O separador do CSV bronze é ';' e deve ser consistente em transform/validate/load.
-- IDs de entrada vêm de parlamento_votacoes via output_param_file → parameter_file.
-"""
-
 import json
 import logging
 from pathlib import Path
@@ -26,28 +5,17 @@ from pathlib import Path
 import pandas as pd
 
 from ....utils.extractors.https import HttpJsonExtractor
-from ....utils.logger import logger_setting
 from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
 from ....utils.transformers.cleaning import ColumnSanitizer
 
-logging.basicConfig(
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-    force=True,
-)
-
-logger = logger_setting(
-    "Pipeline: raw_parlamento_votacoes_orientacao",
-    log_file="logs/parlamento_orientacao_votos.log",
-)
+logger = logging.getLogger("raw_camara_votos_orientacao")
 
 _CONFIG_FILE = Path(__file__).parent / "camara_config.yml"
 _SEM_DADOS_FILE = "sem_dados_id_votacao_orientacao.csv"
 
 
-def extract_orientacoes(cfg: PipelineConfig):
-    logger.info("Iniciando Extracao...")
+def extract(cfg: PipelineConfig):
+    logger.info("📥 Iniciando extracao...")
     extractor = HttpJsonExtractor(logger)
 
     todos_ids = pd.read_csv(cfg.parameter_filepath)[["id"]].astype(str)
@@ -80,8 +48,8 @@ def extract_orientacoes(cfg: PipelineConfig):
     )
 
     logger.info(
-        f"{len(pendentes)} votações pendentes "
-        f"(total: {len(todos_ids)}, já extraídas: {len(ids_landing)}, sem dados: {len(ids_sem_dados)})."
+        f"{len(pendentes)} votacoes pendentes "
+        f"(total: {len(todos_ids)}, ja extraidas: {len(ids_landing)}, sem dados: {len(ids_sem_dados)})."
     )
 
     for vot_id in pendentes:
@@ -93,7 +61,7 @@ def extract_orientacoes(cfg: PipelineConfig):
             )
         elif data is not None:
             logger.warning(
-                f"Sem dados para votacao {vot_id}, registrando para ignorar nas próximas runs."
+                f"⚠️ Sem dados para votacao {vot_id}, registrando para ignorar nas proximas runs."
             )
             write_header = not sem_dados_path.exists()
             with open(sem_dados_path, "a", encoding="utf-8", newline="") as f:
@@ -102,8 +70,8 @@ def extract_orientacoes(cfg: PipelineConfig):
                 f.write(f"{vot_id}\n")
 
 
-def transform_orientacoes(cfg: PipelineConfig):
-    logger.info("Iniciando Transformacao...")
+def transform(cfg: PipelineConfig):
+    logger.info("🔄 Iniciando transformacao...")
     dataframes = []
     for f in cfg.landing_dir.iterdir():
         try:
@@ -128,13 +96,13 @@ def transform_orientacoes(cfg: PipelineConfig):
             df = ColumnSanitizer(df).sanitize_columns_names().df
             dataframes.append(df)
 
-        except Exception as e:
-            print(f"ERRO AO TRANSFORMAR {f} --- {e}")
+        except Exception:
+            logger.error(f"❌ Erro ao transformar {f}", exc_info=True)
             continue
 
     if not dataframes:
         logger.warning(
-            "Nenhum arquivo com dados encontrado em landing_dir. Bronze não gerado."
+            "⚠️ Nenhum arquivo com dados encontrado em landing_dir. Bronze nao gerado."
         )
         return
 
@@ -145,19 +113,22 @@ def transform_orientacoes(cfg: PipelineConfig):
 def run_pipeline(cfg):
     etl = GenericETL(
         cfg=cfg,
-        extract_fn=extract_orientacoes,
+        extract_fn=extract,
         load_fn=None,
-        validator=None,
         log=logger,
     )
 
     # etl.extract()
-    transform_orientacoes(cfg)
-    # etl.validate()
+    transform(cfg)
     etl.load()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
     config = load_source_config(_CONFIG_FILE, source="votos_orientacao", env="local")
     run_pipeline(PipelineConfig(**config))
     # python -m src.pipelines.legislativo.camara.camara_votos_orientacao

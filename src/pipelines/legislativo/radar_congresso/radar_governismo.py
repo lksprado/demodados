@@ -6,9 +6,8 @@ https://radar.congressoemfoco.com.br/api/governismo?casa={camara|senado}
 
 Fluxo:
 1) etl.extract(): baixa o JSON em data/landing.
-2) transform_governismo(cfg): normaliza o JSON, converte wide→long e salva CSV em data/bronze.
-3) etl.validate(): reabre o CSV bronze e valida com Pandera (GovernismoSchema).
-4) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
+2) transform(cfg): normaliza o JSON, converte wide→long e salva CSV em data/bronze.
+3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
 
 Requisitos:
 - PostgreSQL acessível e configurado no PostgreSQLManager.
@@ -28,28 +27,20 @@ from pathlib import Path
 import pandas as pd
 
 from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
-from ..schema import GovernismoSchema
 
-logging.basicConfig(
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-    force=True,  # garante que qualquer configuração anterior seja sobrescrita
-)
-
-logger = logging.getLogger("Pipeline: raw_radar_governismo")
+logger = logging.getLogger("raw_radar_governismo")
 
 _CONFIG_FILE = Path(__file__).parent / "radar_congresso_config.yml"
 
 
-def transform_governismo(cfg: PipelineConfig) -> Path:
+def transform(cfg: PipelineConfig) -> Path:
     with cfg.landing_filepath.open("r") as f:
         raw = json.load(f)
 
     df = pd.DataFrame(raw)
 
     if df.empty:
-        logger.warning("DATAFRAME VAZIO!")
+        logger.warning("⚠️ Dataframe vazio.")
 
     try:
         parlamentares = df["parlamentares"]
@@ -84,9 +75,9 @@ def transform_governismo(cfg: PipelineConfig) -> Path:
         )
 
         df_long.to_csv(cfg.bronze_filepath, sep=";", index=False)
-        logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
+        logger.info(f"💾 CSV salvo em: {cfg.bronze_filepath}")
     except Exception as e:
-        logger.error(f"ERRO AO TRANSFORMAR {cfg.landing_file} --- {e} ")
+        logger.error(f"❌ Erro ao transformar {cfg.landing_file}", exc_info=True)
         raise
 
 
@@ -95,17 +86,20 @@ def run_pipeline(cfg: PipelineConfig):
         cfg=cfg,
         extract_fn=None,
         load_fn=None,
-        validator=GovernismoSchema,
         log=logger,
     )
 
     etl.extract()
-    transform_governismo(cfg)
-    etl.validate()
+    transform(cfg)
     etl.load()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
     config_dep = load_source_config(
         _CONFIG_FILE, source="governismo_deputados", env="local"
     )

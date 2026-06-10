@@ -20,5 +20,5 @@ def make_bs_object(input_file: Path = None, response: Response.text = None) -> b
     elif input_file is None and response is not None:
         soup = bs(response, "html.parser")
     else:
-        raise ("Ambos parametros None")
+        raise ValueError("Ambos parametros None")
     return soup

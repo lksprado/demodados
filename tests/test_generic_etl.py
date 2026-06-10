@@ -18,7 +18,6 @@ def test_generic_extraction_calls_http_extractor(monkeypatch, tmp_path: Path):
             called["output_dir"] = Path(output_dir)
             called["filename"] = filename
 
-    # Replace HttpJsonExtractor in GenericETL module scope
     import src.utils.pipeline_cfg as pipeline_cfg_module
 
     monkeypatch.setattr(pipeline_cfg_module, "HttpJsonExtractor", FakeExtractor)
@@ -62,32 +61,18 @@ def test_transform_without_function_raises(tmp_path: Path):
         etl.transform()
 
 
-def test_transform_with_function_returns_df(tmp_path: Path):
+def test_transform_with_function_is_called(tmp_path: Path):
+    called = {"ran": False}
+
+    def tx(cfg):
+        called["ran"] = True
+        assert isinstance(cfg, PipelineConfig)
+
     cfg = PipelineConfig(landing_dir=tmp_path / "ld")
-
-    def tx(df, _cfg):
-        return pd.DataFrame({"a": [1, 2]})
-
     etl = GenericETL(cfg=cfg, transform_fn=tx)
-    out = etl.transform()
-    assert isinstance(out, pd.DataFrame)
-    assert list(out.columns) == ["a"]
+    etl.transform()
 
-
-def test_generic_validator_calls_validate():
-    class FakeValidator:
-        def __init__(self):
-            self.called = False
-
-        def validate(self, df):
-            self.called = True
-            return "validated"
-
-    val = FakeValidator()
-    etl = GenericETL(cfg={}, validator=val)
-    res = etl.validate(pd.DataFrame({"x": [1]}))
-    assert res == "validated"
-    assert val.called is True
+    assert called["ran"] is True
 
 
 def test_generic_loader_uses_default_postgres_manager(monkeypatch, tmp_path: Path):
@@ -102,18 +87,21 @@ def test_generic_loader_uses_default_postgres_manager(monkeypatch, tmp_path: Pat
 
     import src.utils.pipeline_cfg as pipeline_cfg_module
 
-    # Patch the class used inside generic_loader
     monkeypatch.setattr(pipeline_cfg_module, "PostgreSQLManager", lambda: FakePg())
+
+    bronze = tmp_path / "brz"
+    bronze.mkdir()
+    csv_path = bronze / "file.csv"
+    pd.DataFrame({"x": [1, 2, 3]}).to_csv(csv_path, sep=";", index=False)
 
     cfg = PipelineConfig(
         landing_dir=tmp_path / "ld",
-        bronze_dir=tmp_path / "brz",
+        bronze_dir=bronze,
         bronze_file="file.csv",
         db_table="my_table",
     )
     etl = GenericETL(cfg=cfg)
-    df = pd.DataFrame({"x": [1, 2, 3]})
-    etl.generic_loader(df)
+    etl.generic_loader()
 
     assert sent == {
         "table_name": "my_table",
@@ -126,8 +114,8 @@ def test_generic_loader_uses_default_postgres_manager(monkeypatch, tmp_path: Pat
 def test_load_uses_custom_load_fn(tmp_path: Path):
     called = {"args": None}
 
-    def custom_load(df, cfg):
-        called["args"] = (len(df), cfg.db_table)
+    def custom_load(cfg):
+        called["args"] = cfg.db_table
         return "loaded"
 
     cfg = PipelineConfig(
@@ -136,7 +124,7 @@ def test_load_uses_custom_load_fn(tmp_path: Path):
         db_table="t",
     )
     etl = GenericETL(cfg=cfg, load_fn=custom_load)
-    out = etl.load(pd.DataFrame({"x": [1, 2]}))
+    out = etl.load()
 
     assert out == "loaded"
-    assert called["args"] == (2, "t")
+    assert called["args"] == "t"

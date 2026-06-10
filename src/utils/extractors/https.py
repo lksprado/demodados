@@ -58,9 +58,9 @@ class HttpJsonExtractor:
             response.raise_for_status()
             return response.json()
         except ValueError:
-            self.logger.error(f"RESPOSTA NAO E JSON: {url}")
+            self.logger.error(f"❌ Resposta nao e JSON: {url}")
         except requests.RequestException as e:
-            self.logger.error(f"ERRO NA REQUISICAO: {url} --- {e}")
+            self.logger.error(f"❌ Erro na requisicao: {url} --- {e}")
         return None
 
     def make_http_request_text(self, url: str) -> Response.text:
@@ -68,10 +68,10 @@ class HttpJsonExtractor:
         try:
             response = requests.get(url, timeout=10, headers=self.default_headers)
             response.raise_for_status()
-            logger.info(f"{response} --- {url}")
+            self.logger.info(f"Requisicao OK: {response.status_code} - {url}")
             return response.text
         except requests.RequestException as e:
-            self.logger.error(f"ERRO NA REQUISICAO: {url} --- {e}")
+            self.logger.error(f"❌ Erro na requisicao: {url} --- {e}")
         return None
 
     def save_response(self, json_data: dict, output_dir: Path | str, filename: str):
@@ -92,7 +92,7 @@ class HttpJsonExtractor:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(json_data, f, indent=4, ensure_ascii=False)
 
-        self.logger.info(f"JSON SALVO EM: {file_path}")
+        self.logger.info(f"💾 JSON salvo em: {file_path}")
 
     def fetch_and_save_many(
         self,
@@ -113,7 +113,7 @@ class HttpJsonExtractor:
             if data is not None:
                 self.save_response(data, output_dir, filename)
             else:
-                self.logger.warning(f"Sem dados de {url}")
+                self.logger.warning(f"⚠️ Sem dados de {url}")
 
         if workers == 1:
             for url, filename in tasks:
@@ -121,7 +121,7 @@ class HttpJsonExtractor:
             return
 
         self.logger.info(
-            f"Iniciando extração com {workers} threads ({len(tasks)} tarefas)..."
+            f"📥 Iniciando extracao com {workers} threads ({len(tasks)} tarefas)..."
         )
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(_one, url, fn): fn for url, fn in tasks}
@@ -129,7 +129,7 @@ class HttpJsonExtractor:
                 try:
                     fut.result()
                 except Exception as e:
-                    self.logger.error(f"Erro em {futures[fut]}: {e}", exc_info=True)
+                    self.logger.error(f"❌ Erro em {futures[fut]}: {e}", exc_info=True)
 
     def fetch_and_save(self, url: str, output_dir: Path | str, filename: str, **kwargs):
         """Faz requisicao e persiste em disco.
@@ -143,7 +143,7 @@ class HttpJsonExtractor:
         if data is not None:
             self.save_response(data, output_dir, filename)
         else:
-            self.logger.warning(f"NENHUM DADO DE {url}")
+            self.logger.warning(f"⚠️ Nenhum dado de {url}")
 
 
 if __name__ == "__main__":

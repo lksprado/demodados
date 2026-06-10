@@ -5,8 +5,6 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import pandas as pd
-from pandera.errors import SchemaError
-from pandera.pandas import DataFrameModel
 
 from ..utils.extractors.https import HttpJsonExtractor
 from ..utils.loaders.postgres import PostgreSQLManager
@@ -81,22 +79,13 @@ class PipelineConfig:
         if self.criar_dirs:
             self.ensure_dirs()
 
-    # Conveniência para garantir diretórios antes de usar
     def ensure_dirs(self) -> None:
-        """Garante diretórios Landing e Bronze"""
         if not self.landing_dir.exists():
             self.landing_dir.mkdir(parents=True, exist_ok=True)
-
         if self.bronze_dir is not None:
             if not self.bronze_dir.exists():
                 self.bronze_dir.mkdir(parents=True, exist_ok=True)
 
-    # @property
-    # É um decorator do Python que transforma uma função (método) em um atributo “calculado”.
-    # Você acessa como se fosse um campo (obj.algo), mas por trás ele roda uma função.
-    # Vantagens
-    # usar obj.bronze_filepath em vez de obj.get_bronze_filepath()
-    # valores que dependem de outros (ex.: dir + file ➜ path).
     @property
     def landing_filepath(self) -> Path:
         if not self.landing_dir:
@@ -182,19 +171,25 @@ class GenericETL:
         self,
         cfg: PipelineConfig,
         extract_fn: Callable[[PipelineConfig], Path] | None = None,
+        transform_fn: Callable[[PipelineConfig], None] | None = None,
         load_fn: Callable[[PipelineConfig], None] | None = None,
-        validator: DataFrameModel | None = None,
         log: Optional[logging.Logger] = None,
     ):
         self.cfg = cfg
         self.extract_fn = extract_fn
+        self.transform_fn = transform_fn
         self.load_fn = load_fn
-        self.validator = validator
         self.logger = log or logging.getLogger(self.__class__.__name__)
+
+    # --- RUN ALL ---
+    def run(self) -> None:
+        self.extract()
+        self.transform()
+        self.load()
 
     # --- EXTRACT ---
     def generic_extraction(self) -> Path:
-        self.logger.info("Iniciando Extração...")
+        self.logger.info("📥 Iniciando extracao...")
         extractor = HttpJsonExtractor(self.logger)
         extractor.fetch_and_save(
             url=self.cfg.url_base,
@@ -205,30 +200,20 @@ class GenericETL:
 
     def extract(self) -> Path:
         if self.extract_fn is not None:
-            return self.extract_fn(self.cfg)  # custom usa cfg
-        return self.generic_extraction()  # genérico sem args
+            return self.extract_fn(self.cfg)
+        return self.generic_extraction()
 
-    # --- VALIDATE ---
-    def validate(self) -> Path:
-        if not self.validator:
-            self.logger.info("Sem validador; pulando validação.")
-            return self.cfg.bronze_filepath
-
-        self.logger.info(f"Validando {self.cfg.bronze_filepath}...")
-        df = pd.read_csv(
-            self.cfg.bronze_filepath, sep=";"
-        )  # opcional: sep/encoding do cfg
-        try:
-            self.validator.validate(df)
-            self.logger.info("Validação OK")
-            return self.cfg.bronze_filepath
-        except SchemaError as e:
-            self.logger.error(f"ERRO DE SCHEMA: {e}", exc_info=True)
-            raise
+    # --- TRANSFORM ---
+    def transform(self) -> None:
+        if self.transform_fn is None:
+            raise NotImplementedError("transform_fn não configurado em GenericETL.")
+        return self.transform_fn(self.cfg)
 
     # --- LOAD ---
     def generic_loader(self) -> None:
-        self.logger.info(f"Carga de {self.cfg.bronze_filepath} -> {self.cfg.db_table}")
+        self.logger.info(
+            f"📤 Carregando {self.cfg.bronze_filepath} -> {self.cfg.db_table}"
+        )
         df = pd.read_csv(self.cfg.bronze_filepath, sep=";", low_memory=False)
         PostgreSQLManager().send_df_to_db(
             df=df,
@@ -236,12 +221,9 @@ class GenericETL:
             filename=self.cfg.bronze_filepath.name,
             how="replace",
         )
-        self.logger.info("Carga concluída")
+        self.logger.info("✅ Carga concluida")
 
     def load(self) -> None:
         if self.load_fn is not None:
-            # loader custom totalmente dirigido por cfg
-            self.load_fn(self.cfg)
-        else:
-            # fallback usa o método que já conhece self.cfg
-            self.generic_loader()
+            return self.load_fn(self.cfg)
+        self.generic_loader()

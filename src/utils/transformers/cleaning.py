@@ -63,27 +63,10 @@ class ColumnSanitizer:
     def not_sanitize_columns_values(
         self, cols: list, case="upper", space="keep", alfanum="remove"
     ):
-
-        for col in cols:
-            for col in [c for c in self.df.columns if c not in cols]:
-                if pd.api.types.is_numeric_dtype(self.df[col]):
-                    continue
-
-                self.df[col] = self.df[col].astype(str)
-                self.df[col] = self.df[col].map(unidecode).str.strip()
-
-                if case == "upper":
-                    self.df[col] = self.df[col].str.upper()
-                elif case == "lower":
-                    self.df[col] = self.df[col].str.lower()
-
-                if space == "replace":
-                    self.df[col] = self.df[col].str.replace(" ", "_", regex=False)
-
-                if alfanum == "remove":
-                    self.df[col] = self.df[col].str.replace(r"[^\w\s]", "", regex=True)
-
-        return self
+        other = [c for c in self.df.columns if c not in cols]
+        return self.sanitize_columns_values(
+            cols=other, case=case, space=space, alfanum=alfanum
+        )
 
 
 def sanitize_output(df, output_file):

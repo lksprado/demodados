@@ -6,9 +6,8 @@ https://apirest2.politicos.org.br/api/parliamentarianranking
 
 Fluxo:
 1) etl.extract(): baixa o JSON em data/landing usando o extractor genérico.
-2) transform_parlamentares(cfg): normaliza o JSON, seleciona colunas e salva CSV em data/bronze.
-3) etl.validate(): reabre o CSV bronze e valida com Pandera (ParlamentarRankingSchema).
-4) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
+2) transform(cfg): normaliza o JSON, seleciona colunas e salva CSV em data/bronze.
+3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
 
 Requisitos:
 - PostgreSQL acessível e configurado no PostgreSQLManager.
@@ -23,20 +22,12 @@ Observações:
 import logging
 from pathlib import Path
 
-from ...utils.loaders.postgres import PostgreSQLManager
-from ...utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
-from ...utils.transformers.cleaning import ColumnSanitizer
-from ...utils.transformers.json_parsers import normalize_json_object
-from ..legislativo.schema import ParlamentarRankingSchema
+from ....utils.loaders.postgres import PostgreSQLManager
+from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
+from ....utils.transformers.cleaning import ColumnSanitizer
+from ....utils.transformers.json_parsers import normalize_json_object
 
-logging.basicConfig(
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-    force=True,  # garante que qualquer configuração anterior seja sobrescrita
-)
-
-logger = logging.getLogger("Pipeline: raw_ranking_parlamentares")
+logger = logging.getLogger("raw_ranking_parlamentares")
 
 _CONFIG_FILE = Path(__file__).parent / "ranking_politicos_config.yml"
 
@@ -94,8 +85,8 @@ cols_to_not_sanitize_values = [
 ]
 
 
-def transform_parlamentares(cfg: PipelineConfig):
-    logger.info("Iniciando Transformacao...")
+def transform(cfg: PipelineConfig):
+    logger.info("🔄 Iniciando transformacao...")
     df = normalize_json_object(cfg.landing_filepath, key="data")
     df = ColumnSanitizer(df).sanitize_columns_names().df
     df = df[[c for c in cols_to_keep if c in df.columns]]
@@ -106,7 +97,7 @@ def transform_parlamentares(cfg: PipelineConfig):
     )
 
     df.to_csv(cfg.bronze_filepath, sep=";", index=False)
-    logger.info(f"CSV SALVO EM: {cfg.bronze_filepath}")
+    logger.info(f"💾 CSV salvo em: {cfg.bronze_filepath}")
 
 
 def run_pipeline(cfg: PipelineConfig) -> None:
@@ -114,19 +105,22 @@ def run_pipeline(cfg: PipelineConfig) -> None:
         cfg=cfg,
         extract_fn=None,
         load_fn=None,
-        validator=ParlamentarRankingSchema,
         log=logger,
     )
 
     etl.extract()
-    transform_parlamentares(cfg)
-    etl.validate()
+    transform(cfg)
     pg = PostgreSQLManager()
     pg.execute_query(query="DROP TABLE raw.raw_ranking_parlamentares CASCADE")
     etl.load()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
     config = load_source_config(_CONFIG_FILE, source="parlamentares", env="local")
     run_pipeline(PipelineConfig(**config))
     # python -m src.pipelines.ranking_politicos.ranking_parlamentares
