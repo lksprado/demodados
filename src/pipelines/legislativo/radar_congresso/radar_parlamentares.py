@@ -1,24 +1,3 @@
-"""
-Pipeline — Radar Congresso (Parlamentares)
-
-Extrai, transforma, valida e carrega a listagem de parlamentares a partir da API:
-https://radar.congressoemfoco.com.br/api/busca-parlamentar
-
-Fluxo:
-1) etl.extract(): baixa o JSON em data/landing.
-2) transform(cfg): normaliza o JSON, sanitiza colunas e salva CSV em data/bronze.
-3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
-
-Requisitos:
-- PostgreSQL acessível e configurado no PostgreSQLManager.
-- Schema Pandera: ParlamentarRadarSchema.
-- PipelineConfig com: url_base, landing_dir, landing_file, bronze_dir, bronze_file, db_table.
-
-Observações:
-- O script configura logging no entry-point (nível INFO). Em Airflow, não use basicConfig; use o logger do Airflow.
-- O CSV bronze usa separador ';' e deve ser lido com o mesmo sep em validate/load.
-"""
-
 import logging
 from pathlib import Path
 

@@ -1,24 +1,3 @@
-"""
-Pipeline — Radar Congresso (Governismo)
-
-Extrai, transforma, valida e carrega dados de governismo a partir da API:
-https://radar.congressoemfoco.com.br/api/governismo?casa={camara|senado}
-
-Fluxo:
-1) etl.extract(): baixa o JSON em data/landing.
-2) transform(cfg): normaliza o JSON, converte wide→long e salva CSV em data/bronze.
-3) etl.load(): insere o CSV bronze na tabela Postgres definida em cfg.db_table.
-
-Requisitos:
-- PostgreSQL acessível e configurado no PostgreSQLManager.
-- Schema Pandera: GovernismoSchema.
-- PipelineConfig com: url_base, landing_dir, landing_file, bronze_dir, bronze_file, db_table.
-
-Observações:
-- O script configura logging no entry-point (nível INFO). Em Airflow, não use basicConfig; use o logger do Airflow.
-- O CSV bronze usa separador ';' e deve ser lido com o mesmo sep em validate/load.
-"""
-
 import json
 import logging
 import re
@@ -76,7 +55,7 @@ def transform(cfg: PipelineConfig) -> Path:
 
         df_long.to_csv(cfg.bronze_filepath, sep=";", index=False)
         logger.info(f"💾 CSV salvo em: {cfg.bronze_filepath}")
-    except Exception as e:
+    except Exception:
         logger.error(f"❌ Erro ao transformar {cfg.landing_file}", exc_info=True)
         raise
 
