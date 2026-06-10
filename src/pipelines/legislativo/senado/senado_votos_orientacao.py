@@ -82,12 +82,13 @@ def run_pipeline(cfg):
     etl = GenericETL(
         cfg=cfg,
         extract_fn=extract,
+        transform_fn=transform,
         load_fn=None,
         log=logger,
     )
 
     # etl.extract()
-    transform(cfg)
+    etl.transform()
     etl.load()
 
 

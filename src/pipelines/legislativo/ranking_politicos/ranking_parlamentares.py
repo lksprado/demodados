@@ -22,7 +22,6 @@ Observações:
 import logging
 from pathlib import Path
 
-from ....utils.loaders.postgres import PostgreSQLManager
 from ....utils.pipeline_cfg import GenericETL, PipelineConfig, load_source_config
 from ....utils.transformers.cleaning import ColumnSanitizer
 from ....utils.transformers.json_parsers import normalize_json_object
@@ -104,15 +103,11 @@ def run_pipeline(cfg: PipelineConfig) -> None:
     etl = GenericETL(
         cfg=cfg,
         extract_fn=None,
+        transform_fn=transform,
         load_fn=None,
         log=logger,
     )
-
-    etl.extract()
-    transform(cfg)
-    pg = PostgreSQLManager()
-    pg.execute_query(query="DROP TABLE raw.raw_ranking_parlamentares CASCADE")
-    etl.load()
+    etl.run()
 
 
 if __name__ == "__main__":

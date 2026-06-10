@@ -70,13 +70,11 @@ def run_pipeline(cfg):
     etl = GenericETL(
         cfg=cfg,
         extract_fn=partial(extract, workers=4),
+        transform_fn=transform,
         load_fn=None,
         log=logger,
     )
-
-    etl.extract()
-    transform(cfg)
-    etl.load()
+    etl.run()
 
 
 if __name__ == "__main__":
