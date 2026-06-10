@@ -32,6 +32,36 @@ def test_pipeline_cfg_normalizes_paths_and_derives_bronze_file(tmp_path: Path):
     assert cfg.bronze_filepath == bronze_dir / "data.csv"
 
 
+def test_pipeline_cfg_resolves_date_template(tmp_path: Path):
+    from datetime import datetime
+
+    today = datetime.today().strftime("%Y-%m-%d")
+    cfg = PipelineConfig(
+        landing_dir=tmp_path / "landing",
+        bronze_dir=tmp_path / "bronze",
+        landing_file="data_{date}.json",
+        bronze_file="data_{date}.csv",
+        criar_dirs=True,
+    )
+
+    assert cfg.landing_file == f"data_{today}.json"
+    assert cfg.bronze_file == f"data_{today}.csv"
+    assert cfg.landing_filepath == tmp_path / "landing" / f"data_{today}.json"
+
+
+def test_pipeline_cfg_derives_bronze_with_date(tmp_path: Path):
+    from datetime import datetime
+
+    today = datetime.today().strftime("%Y-%m-%d")
+    cfg = PipelineConfig(
+        landing_dir=tmp_path / "landing",
+        landing_file="data_{date}.json",
+        criar_dirs=False,
+    )
+
+    assert cfg.bronze_file == f"data_{today}.csv"
+
+
 def test_pipeline_cfg_missing_fields_raise():
     cfg = PipelineConfig(landing_dir="/tmp/ld", criar_dirs=False)
 

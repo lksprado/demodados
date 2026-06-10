@@ -27,20 +27,20 @@ sources:
   votacoes:
     base_url: "https://dadosabertos.camara.leg.br/api/v2/votacoes"
     subpath: "votacoes"
-    bronze_file: "parlamento_votacoes.csv"
+    bronze_file: "camara_votacoes.csv"
     db_table: "raw_camara_votacoes"
     output_param_file: "id_votacoes.csv"
 
   votos_deputados:
     base_url: "https://dadosabertos.camara.leg.br/api/v2/votacoes/"
     subpath: "votos_deputados"
-    bronze_file: "parlamento_votos_deputados.csv"
-    db_table: "raw_parlamento_votos_deputados"
+    bronze_file: "camara_votos_deputados.csv"
+    db_table: "raw_camara_votos_deputados"
     parameter_file: "id_votacoes.csv"
 
   votos_orientacao:
     base_url: "https://dadosabertos.camara.leg.br/api/v2/votacoes/"
     subpath: "votos_orientacao"
-    bronze_file: "parlamento_votos_orientacao.csv"
-    db_table: "raw_parlamento_votos_orientacao"
+    bronze_file: "camara_votos_orientacao.csv"
+    db_table: "raw_camara_votos_orientacao"
     parameter_file: "id_votacoes.csv"

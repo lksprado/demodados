@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -65,6 +66,13 @@ class PipelineConfig:
         if self.output_param_dir:
             self.output_param_dir = Path(self.output_param_dir)
             self.output_param_dir.mkdir(parents=True, exist_ok=True)
+
+        # Resolve template {date} em landing_file e bronze_file
+        today = datetime.today().strftime("%Y-%m-%d")
+        if self.landing_file:
+            self.landing_file = self.landing_file.format(date=today)
+        if self.bronze_file:
+            self.bronze_file = self.bronze_file.format(date=today)
 
         # Deriva bronze_file se não vier no config
         if self.bronze_file is None and self.landing_file:
@@ -221,9 +229,7 @@ class GenericETL:
     # --- LOAD ---
     def generic_loader(self) -> None:
         self.logger.info(f"Carga de {self.cfg.bronze_filepath} -> {self.cfg.db_table}")
-        df = pd.read_csv(
-            self.cfg.bronze_filepath, sep=";"
-        )  # opcional: sep/encoding do cfg
+        df = pd.read_csv(self.cfg.bronze_filepath, sep=";", low_memory=False)
         PostgreSQLManager().send_df_to_db(
             df=df,
             table_name=self.cfg.db_table,

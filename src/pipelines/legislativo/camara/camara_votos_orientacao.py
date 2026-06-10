@@ -132,6 +132,12 @@ def transform_orientacoes(cfg: PipelineConfig):
             print(f"ERRO AO TRANSFORMAR {f} --- {e}")
             continue
 
+    if not dataframes:
+        logger.warning(
+            "Nenhum arquivo com dados encontrado em landing_dir. Bronze não gerado."
+        )
+        return
+
     dfs = pd.concat(dataframes, ignore_index=True)
     dfs.to_csv(cfg.bronze_filepath, sep=";", index=False)
 
@@ -145,7 +151,7 @@ def run_pipeline(cfg):
         log=logger,
     )
 
-    etl.extract()
+    # etl.extract()
     transform_orientacoes(cfg)
     # etl.validate()
     etl.load()
@@ -154,4 +160,4 @@ def run_pipeline(cfg):
 if __name__ == "__main__":
     config = load_source_config(_CONFIG_FILE, source="votos_orientacao", env="local")
     run_pipeline(PipelineConfig(**config))
-    # python -m src.pipelines.legislativo.camara.parlamento_votos_orientacao
+    # python -m src.pipelines.legislativo.camara.camara_votos_orientacao
