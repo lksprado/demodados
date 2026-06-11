@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -13,8 +14,20 @@ logger = logging.getLogger("raw_senado_votacoes")
 _CONFIG_FILE = Path(__file__).parent / "senado_config.yml"
 
 
+def extract_current_year(cfg: PipelineConfig):
+    logger.info("📥 Iniciando extracao do ano atual...")
+    extractor = HttpJsonExtractor(logger)
+    y = date.today().year
+    base_params = f"dataInicio={y}-01-01&dataFim={y}-12-31&v=1"
+    data = extractor.make_http_request(f"{cfg.url_base}?{base_params}")
+    if not data:
+        logger.warning(f"⚠️ Sem dados para {y}.")
+        return
+    extractor.save_response(data, cfg.landing_dir, f"{y}_senado_votacoes")
+
+
 def extract(cfg: PipelineConfig):
-    logger.info("📥 Iniciando extracao...")
+    logger.info("📥 Iniciando extracao historica...")
     extractor = HttpJsonExtractor(logger)
 
     for y in range(2001, 2027):
