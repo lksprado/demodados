@@ -39,13 +39,14 @@ class HttpJsonExtractor:
         self.session.mount("https://", adapter)
 
     def make_http_request(
-        self, url: str, method: str = "GET", **kwargs
+        self, url: str, method: str = "GET", timeout: int = 30, **kwargs
     ) -> Optional[dict]:
         """Faz requisição HTTP e retorna JSON (ou None em caso de erro).
 
         Args:
             url (str): URL para requisicao
             method (str, optional): Metodo de requisicao. Defaults to "GET".
+            timeout (int, optional): Timeout em segundos. Defaults to 30.
         Returns:
             Optional[dict]: Dicionario, JSON
         """
@@ -53,7 +54,7 @@ class HttpJsonExtractor:
         headers = {**self.default_headers, **user_headers}
         try:
             response = self.session.request(
-                method=method, url=url, headers=headers, **kwargs
+                method=method, url=url, headers=headers, timeout=timeout, **kwargs
             )
             response.raise_for_status()
             return response.json()

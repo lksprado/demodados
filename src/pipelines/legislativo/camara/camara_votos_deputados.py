@@ -59,10 +59,15 @@ def extract(cfg: PipelineConfig):
             extractor.save_response(
                 data, cfg.landing_dir, f"{vot_id}_votos_deputados.json"
             )
-        elif data is not None:
-            logger.warning(
-                f"⚠️ Sem dados para votacao {vot_id}, registrando para ignorar nas proximas runs."
-            )
+        else:
+            if data is None:
+                logger.warning(
+                    f"⚠️ Erro/timeout para votacao {vot_id}, registrando para pular nas proximas runs."
+                )
+            else:
+                logger.warning(
+                    f"⚠️ Sem dados para votacao {vot_id}, registrando para ignorar nas proximas runs."
+                )
             write_header = not sem_dados_path.exists()
             with open(sem_dados_path, "a", encoding="utf-8", newline="") as f:
                 if write_header:
@@ -100,6 +105,9 @@ def transform(cfg: PipelineConfig):
             logger.error(f"❌ Erro ao transformar {f}", exc_info=True)
             continue
 
+    if not dataframes:
+        logger.warning("⚠️ Nenhum arquivo com dados em landing_dir. Abortando transform.")
+        return
     dfs = pd.concat(dataframes, ignore_index=True)
     dfs.to_csv(cfg.bronze_filepath, sep=";", index=False)
 
