@@ -129,7 +129,7 @@ def run_pipeline(cfg):
         load_fn=None,
         log=logger,
     )
-    etl.run()
+    etl.load()
 
 
 if __name__ == "__main__":
@@ -140,4 +140,4 @@ if __name__ == "__main__":
     )
     config = load_source_config(_CONFIG_FILE, source="votacoes", env="local")
     run_pipeline(PipelineConfig(**config))
-    # python -m src.pipelines.legislativo.parlamento_votacoes
+    # python -m src.pipelines.legislativo.camara.camara_votacoes

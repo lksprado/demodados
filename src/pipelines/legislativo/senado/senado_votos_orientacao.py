@@ -65,7 +65,7 @@ def transform(cfg: PipelineConfig):
                 df = ColumnSanitizer(pd.DataFrame(rows)).sanitize_columns_names().df
                 dataframes.append(df)
 
-        except Exception as e:
+        except Exception:
             logger.error(f"❌ Erro ao transformar {f}", exc_info=True)
             continue
 
@@ -88,7 +88,7 @@ def run_pipeline(cfg):
     )
 
     # etl.extract()
-    etl.transform()
+    # etl.transform()
     etl.load()
 
 

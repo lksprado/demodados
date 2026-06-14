@@ -7,9 +7,13 @@ environments:
     base_bronze: "/usr/local/airflow/mylake/bronze/demodados/ranking"
 
 sources:
-  parlamentares:
-    base_url: "https://apirest2.politicos.org.br/api/parliamentarianranking?Include=Parliamentarian.State&Include=Parliamentarian.Party&Include=Parliamentarian.Organ&Include=Parliamentarian&take=700&StatusId=1&OrderBy=scoreRanking&Year=2025"
-    subpath: "parlamentares"
-    landing_file: "ranking_parlamentares.json"
-    bronze_file: "ranking_parlamentares.csv"
-    db_table: "raw_ranking_parlamentares"
+  deputados:
+    base_url: "https://ranking.org.br/api/filter-items-ranking?page=1&per_page=1000000&current_tab=0&cargo_id=1&ordem=desc&ordenar_por=pontuacao"
+    subpath: "deputados"
+    bronze_file: "ranking_deputados.csv"
+    db_table: "raw_ranking_deputados"
+  senadores:
+    base_url: "https://ranking.org.br/api/filter-items-ranking?page=1&per_page=1000000&current_tab=0&cargo_id=2&ordem=desc&ordenar_por=pontuacao"
+    subpath: "senadores"
+    bronze_file: "ranking_senadores.csv"
+    db_table: "raw_ranking_senadores"

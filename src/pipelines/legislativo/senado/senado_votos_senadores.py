@@ -12,14 +12,27 @@ logger = logging.getLogger("raw_senado_votos_senadores")
 _CONFIG_FILE = Path(__file__).parent / "senado_config.yml"
 
 _PARENT_COLS = [
-    "codigoSessaoVotacao",
-    "codigoSessao",
-    "dataSessao",
-    "identificacao",
-    "sigla",
-    "numero",
     "ano",
+    "casaSessao",
+    "codigoMateria",
+    "codigoSessao",
+    "codigoSessaoLegislativa",
+    "codigoSessaoVotacao",
+    "codigoVotacaoSve",
+    "dataApresentacao",
+    "dataSessao",
+    "idProcesso",
+    "identificacao",
+    "numero",
+    "numeroSessao",
     "resultadoVotacao",
+    "sequencialSessao",
+    "sigla",
+    "siglaTipoSessao",
+    "totalVotosAbstencao",
+    "totalVotosNao",
+    "totalVotosSim",
+    "votacaoSecreta",
 ]
 
 
@@ -48,7 +61,7 @@ def transform(cfg: PipelineConfig):
                 df = ColumnSanitizer(pd.DataFrame(rows)).sanitize_columns_names().df
                 dataframes.append(df)
 
-        except Exception as e:
+        except Exception:
             logger.error(f"❌ Erro ao transformar {f}", exc_info=True)
             continue
 
@@ -57,6 +70,7 @@ def transform(cfg: PipelineConfig):
         return
 
     dfs = pd.concat(dataframes, ignore_index=True)
+
     dfs.to_csv(cfg.bronze_filepath, sep=";", index=False)
     logger.info(f"💾 Votos salvos em: {cfg.bronze_filepath} ({len(dfs)} linhas)")
 
