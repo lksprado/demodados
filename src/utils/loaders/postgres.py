@@ -123,6 +123,64 @@ class PostgreSQLManager:
             logger.error(f"❌ Erro ao inserir no banco: {e}", exc_info=True)
             raise
 
+    def send_csv_to_db(
+        self,
+        csv_path,
+        table_name: str,
+        filename=None,
+        sep: str = ";",
+        chunksize: int = 50_000,
+        how: str = "replace",
+    ):
+        """Carrega um CSV grande para **raw.<table_name>** em blocos (streaming).
+
+        Le e insere o CSV em chunks de ``chunksize`` linhas em vez de materializar
+        o arquivo inteiro em memoria, evitando OOM com bronzes grandes. O primeiro
+        bloco usa ``how`` (replace por padrao) e os demais fazem append, mantendo a
+        inferencia de tipos por coluna (consistente com ``send_df_to_db``).
+        """
+        logger = self.logger
+        engine = self.alchemy()
+        total = 0
+        first = True
+        try:
+            for chunk in pd.read_csv(csv_path, sep=sep, chunksize=chunksize):
+                if filename:
+                    chunk["arquivo_origem"] = filename
+                chunk["data_carga"] = datetime.now()
+                # Mantem o INSERT abaixo do limite de 65535 parametros do Postgres.
+                rows_per_insert = max(1, 60_000 // max(1, chunk.shape[1]))
+                chunk.to_sql(
+                    name=table_name,
+                    con=engine,
+                    schema="raw",
+                    if_exists=how if first else "append",
+                    index=False,
+                    method="multi",
+                    chunksize=rows_per_insert,
+                )
+                total += len(chunk)
+                first = False
+
+            if first:
+                # CSV sem linhas (so cabecalho): cria a tabela vazia mesmo assim.
+                header = pd.read_csv(csv_path, sep=sep, nrows=0)
+                if filename:
+                    header["arquivo_origem"] = pd.Series(dtype="object")
+                header["data_carga"] = pd.Series(dtype="datetime64[ns]")
+                header.to_sql(
+                    name=table_name,
+                    con=engine,
+                    schema="raw",
+                    if_exists=how,
+                    index=False,
+                )
+
+            logger.info(f"✅ {total} linhas inseridas em raw.{table_name}")
+        except Exception as e:
+            logger.error(f"❌ Erro ao inserir CSV no banco: {e}", exc_info=True)
+            raise
+
     def execute_query(self, query: str):
         logger = self.logger
         try:
